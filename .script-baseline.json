@@ -1,0 +1,125 @@
+{
+  "Scripts": [
+    {
+      "Path": "C:\\Users\\Pette\\Documents\\GitHub\\powershell\\tarkista_palvelu.ps1",
+      "Name": "tarkista_palvelu.ps1",
+      "Hash": "6487CAFB56DE6A1537D65C278665C916"
+    },
+    {
+      "Path": "C:\\Users\\Pette\\Documents\\GitHub\\powershell\\scripts\\Automation\\Intune_stay_awake.ps1",
+      "Name": "Intune_stay_awake.ps1",
+      "Hash": "FF79A816572A34B03CA5FCAAFBA71745"
+    },
+    {
+      "Path": "C:\\Users\\Pette\\Documents\\GitHub\\powershell\\scripts\\Automation\\Test-Automation.ps1",
+      "Name": "Test-Automation.ps1",
+      "Hash": "AAE966CA8AD4FF77A1877BEEFB14C6A5"
+    },
+    {
+      "Path": "C:\\Users\\Pette\\Documents\\GitHub\\powershell\\scripts\\Maintenance\\PrepareWindowsServerForP2V.ps1",
+      "Name": "PrepareWindowsServerForP2V.ps1",
+      "Hash": "65FB22804E0C4C741D9744C575BACFD2"
+    },
+    {
+      "Path": "C:\\Users\\Pette\\Documents\\GitHub\\powershell\\scripts\\Maintenance\\SetupStartup.ps1",
+      "Name": "SetupStartup.ps1",
+      "Hash": "D23B98A4BC29501E8BE5B501ECE9CF9C"
+    },
+    {
+      "Path": "C:\\Users\\Pette\\Documents\\GitHub\\powershell\\scripts\\Maintenance\\Stop_processes.ps1",
+      "Name": "Stop_processes.ps1",
+      "Hash": "9E23ED1E9612E6C8AA758E6FA7D71207"
+    },
+    {
+      "Path": "C:\\Users\\Pette\\Documents\\GitHub\\powershell\\scripts\\Maintenance\\SystemMaintenance.ps1",
+      "Name": "SystemMaintenance.ps1",
+      "Hash": "A48BBB21F4874A48E1772610B6D7D03A"
+    },
+    {
+      "Path": "C:\\Users\\Pette\\Documents\\GitHub\\powershell\\scripts\\Maintenance\\Temp_delete.ps1",
+      "Name": "Temp_delete.ps1",
+      "Hash": "2F89DCC83C82AEF945B1EAD4D3A640BD"
+    },
+    {
+      "Path": "C:\\Users\\Pette\\Documents\\GitHub\\powershell\\scripts\\Maintenance\\WindowsServerConfigWithPrompt.ps1",
+      "Name": "WindowsServerConfigWithPrompt.ps1",
+      "Hash": "6BB4E83EA3FFD713D3715FC30EE070DD"
+    },
+    {
+      "Path": "C:\\Users\\Pette\\Documents\\GitHub\\powershell\\scripts\\Monitoring\\Check for Windows Updates.ps1",
+      "Name": "Check for Windows Updates.ps1",
+      "Hash": "0F1B46ABC7E92C2BF1150605C7E212EA"
+    },
+    {
+      "Path": "C:\\Users\\Pette\\Documents\\GitHub\\powershell\\scripts\\Monitoring\\Disk_Space_Monitoring.ps1",
+      "Name": "Disk_Space_Monitoring.ps1",
+      "Hash": "CFF316F115D4E38B07AD80EB24B55A0C"
+    },
+    {
+      "Path": "C:\\Users\\Pette\\Documents\\GitHub\\powershell\\scripts\\Monitoring\\DiskSpaceMonitor2.ps1",
+      "Name": "DiskSpaceMonitor2.ps1",
+      "Hash": "7D48D2F086FD0170B1F66453C3AF7EED"
+    },
+    {
+      "Path": "C:\\Users\\Pette\\Documents\\GitHub\\powershell\\scripts\\Monitoring\\Network_Scanner.ps1",
+      "Name": "Network_Scanner.ps1",
+      "Hash": "27FA68C3A81A1B7BFB3DE8B545895F8C"
+    },
+    {
+      "Path": "C:\\Users\\Pette\\Documents\\GitHub\\powershell\\scripts\\Monitoring\\ServerHealthScan.ps1",
+      "Name": "ServerHealthScan.ps1",
+      "Hash": "402AF5D61667CB6E8A9B4408FC6EF3E3"
+    },
+    {
+      "Path": "C:\\Users\\Pette\\Documents\\GitHub\\powershell\\scripts\\Monitoring\\UserAccountLockoutMonitoring.ps1",
+      "Name": "UserAccountLockoutMonitoring.ps1",
+      "Hash": "549580F8366E1B6B73F1AEAEF1AE20EC"
+    },
+    {
+      "Path": "C:\\Users\\Pette\\Documents\\GitHub\\powershell\\scripts\\Monitoring\\Windows_Server_Monitoring_Script.ps1",
+      "Name": "Windows_Server_Monitoring_Script.ps1",
+      "Hash": "47FD5309523BA9D5C0688E1B13787C3D"
+    },
+    {
+      "Path": "C:\\Users\\Pette\\Documents\\GitHub\\powershell\\scripts\\Reporting\\CitrixVdiScanner.ps1",
+      "Name": "CitrixVdiScanner.ps1",
+      "Hash": "691349B9B0BB611ED22EECF3D4B10A6A"
+    },
+    {
+      "Path": "C:\\Users\\Pette\\Documents\\GitHub\\powershell\\scripts\\Reporting\\ercfr.ps1",
+      "Name": "ercfr.ps1",
+      "Hash": "66E248DA3819DF8952E21EDD7D0D4B6E"
+    },
+    {
+      "Path": "C:\\Users\\Pette\\Documents\\GitHub\\powershell\\scripts\\Reporting\\Generate_User_Access_Report.ps1",
+      "Name": "Generate_User_Access_Report.ps1",
+      "Hash": "58DA1832296562372948DAE8D19EE9B0"
+    },
+    {
+      "Path": "C:\\Users\\Pette\\Documents\\GitHub\\powershell\\scripts\\Reporting\\User_information.ps1",
+      "Name": "User_information.ps1",
+      "Hash": "9EC8A7648EA4F6506E8BEE8613791517"
+    },
+    {
+      "Path": "C:\\Users\\Pette\\Documents\\GitHub\\powershell\\scripts\\Security\\firmware-detection.ps1",
+      "Name": "firmware-detection.ps1",
+      "Hash": "A3083A0C20CB1704D0F20573C099EB9C"
+    },
+    {
+      "Path": "C:\\Users\\Pette\\Documents\\GitHub\\powershell\\scripts\\Security\\Malware_Scan.ps1",
+      "Name": "Malware_Scan.ps1",
+      "Hash": "84AB6C0914B10FBDC1A38A58ED004175"
+    },
+    {
+      "Path": "C:\\Users\\Pette\\Documents\\GitHub\\powershell\\scripts\\Security\\PasswordPolicyCheck.ps1",
+      "Name": "PasswordPolicyCheck.ps1",
+      "Hash": "8F9168200514771977E1F0274E5B4D6B"
+    },
+    {
+      "Path": "C:\\Users\\Pette\\Documents\\GitHub\\powershell\\scripts\\Templates\\ScriptTemplate.ps1",
+      "Name": "ScriptTemplate.ps1",
+      "Hash": "B4F7C7AD1143384BA85AEC46C7B88AAA"
+    }
+  ],
+  "LastUpdate": "2026-01-16T22:20:28.4824708+02:00"
+}
