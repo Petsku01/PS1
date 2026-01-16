@@ -92,45 +92,6 @@ $script:Issues = @()
 
 # Import required modules with error handling
 try {
-    Import-Module "$PSScriptRoot\\CommonFunctions.psm1" -Force -ErrorAction Stop
-    Write-Verbose "Loaded CommonFunctions module"
-} catch {
-    Write-Error "Failed to load CommonFunctions.psm1: $_"
-    exit 1
-}
-
-# Load AstAnalyzer if available
-$astAnalyzerPath = Join-Path $PSScriptRoot "src\\Analyzers\\AstAnalyzer.ps1"
-if (Test-Path $astAnalyzerPath) {
-    try {
-        . $astAnalyzerPath
-        $script:UseAstAnalyzer = $true
-        Write-Verbose "Loaded AstAnalyzer for enhanced analysis"
-    } catch {
-        Write-Warning "Failed to load AstAnalyzer: $_. Using basic analysis."
-        $script:UseAstAnalyzer = $false
-    }
-} else {
-    $script:UseAstAnalyzer = $false
-}
-
-# Load AnalysisResult if available
-$analysisResultPath = Join-Path $PSScriptRoot "src\\Core\\AnalysisResult.ps1"
-if (Test-Path $analysisResultPath) {
-    try {
-        . $analysisResultPath
-        $script:UseAnalysisResult = $true
-        Write-Verbose "Loaded AnalysisResult for thread-safe processing"
-    } catch {
-        Write-Warning "Failed to load AnalysisResult: $_"
-        $script:UseAnalysisResult = $false
-    }
-} else {
-    $script:UseAnalysisResult = $false
-}
-
-# Import required modules with error handling
-try {
     Import-Module "$PSScriptRoot\CommonFunctions.psm1" -Force -ErrorAction Stop
     Write-Verbose "Loaded CommonFunctions module"
 } catch {
@@ -167,6 +128,7 @@ if (Test-Path $analysisResultPath) {
 } else {
     $script:UseAnalysisResult = $false
 }
+
 $baselineFile = Join-Path $PSScriptRoot ".script-baseline.json"
 
 function Test-ScriptSecurity {
@@ -271,14 +233,14 @@ function Test-PathHandling {
     # Check for hard-coded C:\ paths
     if ($Content -match '[''"]C:\\[^''">]+[''"]') {
         $pathMatches = [regex]::Matches($Content, '[\'']C:\\[^\''">]+[\'']')
-        foreach ($match in $pathMatches) {
+        foreach ($pathMatch in $pathMatches) {
             $issues += [PSCustomObject]@{
                 File = $FilePath
                 Severity = 'MEDIUM'
                 Category = 'Portability'
                 Issue = 'Hard-coded Path'
-                Value = $match.Value
-                Description = "Hard-coded path: $($match.Value)"
+                Value = $pathMatch.Value
+                Description = "Hard-coded path: $($pathMatch.Value)"
                 Recommendation = 'Use parameters with $env:SystemDrive or Join-Path'
                 AutoFix = $false
             }
@@ -392,7 +354,7 @@ function Save-ScriptBaseline {
     param([array]$ScriptFiles)
     
     $baseline = @{
-        Scripts = $ScriptFiles | ForEach-Object { @{Name = $_.Name; Path = $_.FullName; Hash = (Get-FileHash $_.FullName -Algorithm MD5).Hash}}
+        Scripts = $ScriptFiles | ForEach-Object { @{Name = $_.Name; Path = $_.FullName; Hash = (Get-FileHash $_.FullName -Algorithm SHA256).Hash}}
         LastUpdate = Get-Date
     }
     
@@ -466,7 +428,7 @@ function Invoke-ContinuousAnalysis {
             
             # Update baseline
             $baseline = @{Scripts = @(); LastUpdate = (Get-Date)}
-            $baseline.Scripts = $scripts | ForEach-Object { @{Name = $_.Name; Path = $_.FullName; Hash = (Get-FileHash $_.FullName -Algorithm MD5).Hash}}
+            $baseline.Scripts = $scripts | ForEach-Object { @{Name = $_.Name; Path = $_.FullName; Hash = (Get-FileHash $_.FullName -Algorithm SHA256).Hash}}
             $baseline | ConvertTo-Json | Set-Content $baselineFile
         }
         
