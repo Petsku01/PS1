@@ -153,5 +153,5 @@ try {
 ---
 
 **Version**: 1.0  
-**Author**: Simple Script Checker  
+**Author**: -pk 
 **Updated**: January 2026
