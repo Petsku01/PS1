@@ -322,17 +322,17 @@ function New-SimpleReport {
 "@
     
         $html | Out-File $reportPath -Encoding UTF8 -ErrorAction Stop
-        Write-Host \"`nReport saved: $reportPath\" -ForegroundColor Green
+        Write-Host "`nReport saved: $reportPath" -ForegroundColor Green
         
         try {
             Start-Process $reportPath -ErrorAction Stop
         }
         catch {
-            Write-Warning \"Report created but could not be opened automatically: $reportPath\"
+            Write-Warning "Report created but could not be opened automatically: $reportPath"
         }
     }
     catch {
-        Write-Error \"Failed to generate report: $($_.Exception.Message)\"
+        Write-Error "Failed to generate report: $($_.Exception.Message)"
         throw
     }
 }

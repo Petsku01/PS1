@@ -62,7 +62,7 @@ if ($prosessi -and $prosessi.Trim() -ne "") {
     try {
         $loytyneetProsessit = @(Get-Process -Name $prosessi -ErrorAction SilentlyContinue)
     } catch {
-        # Jos tarkka nimi ei toimi, kokeile ilman virheit
+        Write-Verbose "Process '$prosessi' not found by exact name, trying wildcard search"
     }
     
     # Jos ei lytynyt, kokeile osittaista hakua

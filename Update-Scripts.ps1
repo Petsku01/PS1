@@ -629,7 +629,7 @@ if ($Parallel -and $PSVersionTable.PSVersion.Major -ge 7 -and $scripts.Count -gt
         $scriptPath = $using:PSScriptRoot
         
         # Import required functions in parallel context
-        . "$scriptPath\CommonFunctions.psm1"
+        Import-Module "$scriptPath\CommonFunctions.psm1" -Force
         
         $content = Get-Content $script.FullName -Raw -ErrorAction SilentlyContinue
         if (-not $content) { return @() }

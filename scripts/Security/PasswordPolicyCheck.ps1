@@ -36,7 +36,13 @@ param(
     [switch]$IncludeNeverExpires
 )
 
-$results = Get-ADUser -Filter {Enabled -eq $true} -SearchBase $SearchBase -Properties `
+$filter = if ($IncludeNeverExpires) {
+    {Enabled -eq $true}
+} else {
+    {Enabled -eq $true -and PasswordNeverExpires -eq $false}
+}
+
+$results = Get-ADUser -Filter $filter -SearchBase $SearchBase -Properties `
     Name,SamAccountName,PasswordLastSet,PasswordNeverExpires,PasswordNotRequired,
     UserAccountControl,msDS-UserPasswordExpiryTimeComputed,msDS-AssignedAuthPolicy `
     -Server (Get-ADDomainController -Discover -Writable).HostName |

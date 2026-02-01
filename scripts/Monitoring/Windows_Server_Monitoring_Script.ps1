@@ -42,28 +42,6 @@ https://docs.microsoft.com/en-us/powershell/module/microsoft.powershell.manageme
 
 #Requires -Version 5.1
 #Requires -RunAsAdministrator
-    
-.PARAMETER ConfigPath
-    Path to configuration file (optional)
-    
-.PARAMETER OutputPath
-    Path where reports will be saved
-    
-.PARAMETER EmailReport
-    Send email report (requires SMTP configuration)
-    
-.PARAMETER Continuous
-    Run in continuous monitoring mode
-    
-.PARAMETER Interval
-    Monitoring interval in seconds (default: 300)
-    
-.EXAMPLE
-    .\ServerMonitor.ps1 -OutputPath "C:\Reports" -EmailReport
-    
-.EXAMPLE
-    .\ServerMonitor.ps1 -Continuous -Interval 60
-#>
 
 [CmdletBinding()]
 param(
@@ -71,8 +49,7 @@ param(
     [string]$OutputPath = "$env:TEMP\ServerMonitor",
     [switch]$EmailReport,
     [switch]$Continuous,
-    [int]$Interval = 300,
-    [switch]$Verbose
+    [int]$Interval = 300
 )
 
 # Global configuration
@@ -495,14 +472,14 @@ function Get-RecentErrors {
                 $events = Get-WinEvent -LogName $logName -MaxEvents 1000 -ErrorAction SilentlyContinue | 
                           Where-Object { $_.TimeCreated -gt $cutoffTime -and $_.LevelDisplayName -in @("Error", "Critical") }
                 
-                foreach ($event in $events) {
+                foreach ($eventItem in $events) {
                     $errorEvents += [PSCustomObject]@{
-                        TimeCreated = $event.TimeCreated
-                        LogName = $event.LogName
-                        Level = $event.LevelDisplayName
-                        EventID = $event.Id
-                        Source = $event.ProviderName
-                        Message = $event.Message.Substring(0, [Math]::Min(200, $event.Message.Length))
+                        TimeCreated = $eventItem.TimeCreated
+                        LogName = $eventItem.LogName
+                        Level = $eventItem.LevelDisplayName
+                        EventID = $eventItem.Id
+                        Source = $eventItem.ProviderName
+                        Message = $eventItem.Message.Substring(0, [Math]::Min(200, $eventItem.Message.Length))
                     }
                 }
             }
@@ -663,7 +640,9 @@ function Get-WindowsUpdateStatus {
                     }
                 }
             }
-            catch { }
+            catch {
+                Write-Verbose "Could not check registry key: $($_.Exception.Message)"
+            }
         }
         
         $updateInfo.PendingReboot = $rebootRequired
@@ -684,7 +663,7 @@ function Get-WindowsUpdateStatus {
 
 #region Reporting Functions
 
-function Generate-HTMLReport {
+function New-HTMLReport {
     <#
     .SYNOPSIS
         Generates HTML report of monitoring results
@@ -913,15 +892,15 @@ function Generate-HTMLReport {
             </tr>
 "@
 
-        foreach ($event in ($MonitoringData.RecentErrors | Select-Object -First 20)) {
+        foreach ($eventItem in ($MonitoringData.RecentErrors | Select-Object -First 20)) {
             $html += @"
             <tr>
-                <td>$($event.TimeCreated.ToString("MM-dd HH:mm"))</td>
-                <td>$($event.LogName)</td>
-                <td>$($event.Level)</td>
-                <td>$($event.EventID)</td>
-                <td>$($event.Source)</td>
-                <td>$($event.Message)</td>
+                <td>$($eventItem.TimeCreated.ToString("MM-dd HH:mm"))</td>
+                <td>$($eventItem.LogName)</td>
+                <td>$($eventItem.Level)</td>
+                <td>$($eventItem.EventID)</td>
+                <td>$($eventItem.Source)</td>
+                <td>$($eventItem.Message)</td>
             </tr>
 "@
         }
@@ -1009,7 +988,10 @@ CRITICAL ALERTS:
         }
         
         # Note: This is a basic example. In production, you'd want to handle authentication
-        # Send-MailMessage @emailParams
+        if ($emailParams.SmtpServer -and $emailParams.To) {
+            # Send-MailMessage @emailParams
+            Write-Verbose "Email params configured: $($emailParams | ConvertTo-Json -Compress)"
+        }
         
         Write-Log "Email alert would be sent to: $($Global:Config.EmailTo -join ', ')" -Level "INFO"
         return $true
@@ -1020,7 +1002,7 @@ CRITICAL ALERTS:
     }
 }
 
-function Cleanup-OldReports {
+function Remove-OldReports {
     <#
     .SYNOPSIS
         Cleans up old report files
@@ -1088,7 +1070,7 @@ function Start-ServerMonitoring {
         $reportFile = Join-Path $OutputPath "ServerMonitor_$(Get-Date -Format 'yyyyMMdd_HHmmss').html"
         
         # Generate HTML report
-        if (Generate-HTMLReport -MonitoringData $monitoringData -OutputFile $reportFile) {
+        if (New-HTMLReport -MonitoringData $monitoringData -OutputFile $reportFile) {
             Write-Log "Monitoring report generated: $reportFile" -Level "INFO"
             
             # Send email if configured and there are alerts
@@ -1098,7 +1080,7 @@ function Start-ServerMonitoring {
         }
         
         # Cleanup old reports
-        Cleanup-OldReports
+        Remove-OldReports
         
         # Summary
         $alertSummary = $Global:Alerts | Group-Object Severity | ForEach-Object { "$($_.Count) $($_.Name)" }

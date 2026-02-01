@@ -44,7 +44,6 @@ function Get-DiskSpaceMonitor {
     [CmdletBinding()]
     param(
         [ValidateRange(1, [System.Double]::MaxValue)][System.Double]$ThresholdGB = 10.0,
-        [System.Management.Automation.SwitchParameter]$WarningsOnly,
         [System.String]$ExportPath,
         [System.Management.Automation.SwitchParameter]$EmailAlert,
         [System.String]$SmtpServer,
@@ -52,33 +51,35 @@ function Get-DiskSpaceMonitor {
         [System.String]$EmailFrom,
         [System.Int32]$SmtpPort = 587,
         [System.Management.Automation.SwitchParameter]$UseSSL,
-        [System.Management.Automation.PSCredential]$SmtpCredential = (Get-Secret -Name 'SmtpCred' -ErrorAction 'SilentlyContinue'),
-        [System.Management.Automation.SwitchParameter]$EnableLogging,
-        [System.String]$LogPath = '.\DiskSpaceMonitor.log'
+        [System.Management.Automation.PSCredential]$SmtpCredential = (Get-Secret -Name 'SmtpCred' -ErrorAction 'SilentlyContinue')
     )
 
     if ($EmailAlert -and -not ($SmtpServer -and $EmailTo -and $EmailFrom)) { throw 'Missing email parameters.' }
 
-    $results = @()
-    $alerts = @()
+    $thresholdValue = $ThresholdGB
 
-    # .NET for performance
-    [System.IO.DriveInfo]::GetDrives() | Where-Object { $_.DriveType -eq [System.IO.DriveType]::Fixed -and $_.IsReady } | ForEach-Object -Parallel {
-        $freeGB = [System.Math]::Round($using:_.AvailableFreeSpace / 1GB, 2)
-        $totalGB = [System.Math]::Round($using:_.TotalSize / 1GB, 2)
-        $percentFree = $totalGB -gt 0 ? [System.Math]::Round(($freeGB / $totalGB) * 100, 1) : 0
-        $status = $freeGB -lt $using:ThresholdGB ? 'WARNING' : 'OK'
+    # .NET for performance - collect results properly from parallel execution
+    $results = [System.IO.DriveInfo]::GetDrives() | 
+        Where-Object { $_.DriveType -eq [System.IO.DriveType]::Fixed -and $_.IsReady } | 
+        ForEach-Object -Parallel {
+            $drive = $_
+            $threshold = $using:thresholdValue
+            
+            $freeGB = [System.Math]::Round($drive.AvailableFreeSpace / 1GB, 2)
+            $totalGB = [System.Math]::Round($drive.TotalSize / 1GB, 2)
+            $percentFree = $totalGB -gt 0 ? [System.Math]::Round(($freeGB / $totalGB) * 100, 1) : 0
+            $status = $freeGB -lt $threshold ? 'WARNING' : 'OK'
 
-        $result = [PSCustomObject]@{
-            Drive = $using:_.Name
-            FreeGB = $freeGB
-            TotalGB = $totalGB
-            PercentFree = $percentFree
-            Status = $status
-        }
-        $results += $result  # Note: In parallel, use shared var carefully or collect post-loop
-        if ($status -eq 'WARNING') { $alerts += "Low space on $($result.Drive): $freeGB GB free" }
-    } -ThrottleLimit 2  # Limit for stability
+            [PSCustomObject]@{
+                Drive = $drive.Name
+                FreeGB = $freeGB
+                TotalGB = $totalGB
+                PercentFree = $percentFree
+                Status = $status
+            }
+        } -ThrottleLimit 2
+
+    $alerts = @($results | Where-Object { $_.Status -eq 'WARNING' } | ForEach-Object { "Low space on $($_.Drive): $($_.FreeGB) GB free" })
 
     if ($alerts -and $EmailAlert) {
         $mailParams = @{

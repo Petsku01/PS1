@@ -57,8 +57,8 @@ catch {
 
 # Verify Configuration Manager Client
 try {
-    # Attempt to retrieve SCCM client information from WMI
-    $client = Get-WmiObject -Namespace "root\ccm" -Class SMS_Client -ErrorAction Stop
+    # Attempt to retrieve SCCM client information from CIM
+    $client = Get-CimInstance -Namespace "root\ccm" -ClassName SMS_Client -ErrorAction Stop
     if ($client) {
         Write-Output "Configuration Manager client is installed. Client version: $($client.ClientVersion)"
     } else {
@@ -66,7 +66,7 @@ try {
     }
 }
 catch {
-    # Handle errors related to WMI query
+    # Handle errors related to CIM query
     Write-Error "Failed to verify Configuration Manager client. Error: $($_.Exception.Message)"
     exit 1
 }

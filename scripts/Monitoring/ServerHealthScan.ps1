@@ -28,12 +28,14 @@ https://docs.microsoft.com/en-us/windows-server/administration/windows-commands/
 #Requires -RunAsAdministrator
 #Requires -Version 5.1
 
-# Import CommonFunctions for standardized logging
-Import-Module -Name (Join-Path $PSScriptRoot '..\..\CommonFunctions.psm1') -Force -ErrorAction Stop
-
+[CmdletBinding()]
 param(
+    [Parameter(HelpMessage = "Directory for health scan logs")]
     [string]$LogDirectory = "$env:SystemDrive\Logs"
 )
+
+# Import CommonFunctions for standardized logging
+Import-Module -Name (Join-Path $PSScriptRoot '..\..\CommonFunctions.psm1') -Force -ErrorAction Stop
 
 # Initialize paths
 $timestamp = Get-Date -Format 'yyyyMMdd_HHmmss'
@@ -69,15 +71,15 @@ $serverVersion = switch ($choice) {
     '5' { '2022' }
 }
 
-Write-Log "Selected Windows Server $serverVersion"
+Write-StandardLog -Message "Selected Windows Server $serverVersion" -Level "INFO" -Path $logFile
 
 # Detect actual OS
 $os = $null
 try {
     $os = Get-CimInstance Win32_OperatingSystem
-    Write-Log "OS: $($os.Caption), Build: $($os.BuildNumber)"
+    Write-StandardLog -Message "OS: $($os.Caption), Build: $($os.BuildNumber)" -Level "INFO" -Path $logFile
 } catch {
-    Write-Log "Could not detect OS version" "ERROR"
+    Write-StandardLog -Message "Could not detect OS version" -Level "ERROR" -Path $logFile
 }
 
 # Initialize issues array
@@ -96,16 +98,16 @@ function Add-Issue {
         Recommendation = $Recommendation
     }
     
-    Write-Log "$Category - $Description" "WARNING"
+    Write-StandardLog -Message "$Category - $Description" -Level "WARN" -Path $logFile
 }
 
 # 1. System Uptime
-Write-Log "Checking system uptime"
+Write-StandardLog -Message "Checking system uptime" -Level "INFO" -Path $logFile
 try {
     if ($os) {
         $bootTime = [Management.ManagementDateTimeConverter]::ToDateTime($os.LastBootUpTime)
         $uptime = (Get-Date) - $bootTime
-        Write-Log "Uptime: $($uptime.Days) days"
+        Write-StandardLog -Message "Uptime: $($uptime.Days) days" -Level "INFO" -Path $logFile
         
         if ($uptime.Days -gt 30) {
             Add-Issue "System" `
@@ -114,11 +116,11 @@ try {
         }
     }
 } catch {
-    Write-Log "Error checking uptime" "ERROR"
+    Write-StandardLog -Message "Error checking uptime" -Level "ERROR" -Path $logFile
 }
 
 # 2. Event Logs
-Write-Log "Scanning event logs"
+Write-StandardLog -Message "Scanning event logs" -Level "INFO" -Path $logFile
 $yesterday = (Get-Date).AddDays(-1)
 
 if ($serverVersion -eq "2008") {
@@ -137,7 +139,7 @@ if ($serverVersion -eq "2008") {
                 }
             }
         } catch {
-            Write-Log "Could not access $logName event log" "WARNING"
+            Write-StandardLog -Message "Could not access $logName event log" -Level "WARN" -Path $logFile
         }
     }
 } else {
@@ -160,18 +162,18 @@ if ($serverVersion -eq "2008") {
             }
         }
     } catch {
-        Write-Log "Could not access event logs" "WARNING"
+        Write-StandardLog -Message "Could not access event logs" -Level "WARN" -Path $logFile
     }
 }
 
 # 3. Disk Space
-Write-Log "Checking disk space"
+Write-StandardLog -Message "Checking disk space" -Level "INFO" -Path $logFile
 try {
     $disks = Get-CimInstance Win32_LogicalDisk -Filter "DriveType=3"
     foreach ($disk in $disks) {
         if ($disk.Size -and $disk.Size -gt 0) {
             $freePercent = [Math]::Round(($disk.FreeSpace / $disk.Size) * 100, 2)
-            Write-Log "Drive $($disk.DeviceID): $freePercent% free"
+            Write-StandardLog -Message "Drive $($disk.DeviceID): $freePercent% free" -Level "INFO" -Path $logFile
             
             if ($freePercent -lt 10) {
                 Add-Issue "Disk" `
@@ -181,11 +183,11 @@ try {
         }
     }
 } catch {
-    Write-Log "Error checking disk space" "ERROR"
+    Write-StandardLog -Message "Error checking disk space" -Level "ERROR" -Path $logFile
 }
 
 # 4. Services
-Write-Log "Checking critical services"
+Write-StandardLog -Message "Checking critical services" -Level "INFO" -Path $logFile
 $services = @('Dnscache', 'wuauserv', 'EventLog', 'RpcSs')
 foreach ($svcName in $services) {
     try {
@@ -198,12 +200,12 @@ foreach ($svcName in $services) {
             }
         }
     } catch {
-        Write-Log "Error checking service $svcName" "WARNING"
+        Write-StandardLog -Message "Error checking service $svcName" -Level "WARN" -Path $logFile
     }
 }
 
 # 5. Network
-Write-Log "Checking network"
+Write-StandardLog -Message "Checking network" -Level "INFO" -Path $logFile
 try {
     $adapters = @(Get-CimInstance Win32_NetworkAdapterConfiguration -Filter "IPEnabled=True")
     if ($adapters.Count -eq 0) {
@@ -212,11 +214,12 @@ try {
                   "Check network configuration"
     }
     
-    # Test connectivity
-    $ping = Test-Connection -ComputerName "8.8.8.8" -Count 2 -Quiet 2>$null
+    # Test connectivity (configurable target)
+    $connectivityTarget = if ($env:PING_TARGET) { $env:PING_TARGET } else { "8.8.8.8" }
+    $ping = Test-Connection -ComputerName $connectivityTarget -Count 2 -Quiet 2>$null
     if (!$ping) {
         Add-Issue "Network" `
-                  "Cannot reach 8.8.8.8" `
+                  "Cannot reach $connectivityTarget" `
                   "Check internet connectivity"
     }
     
@@ -229,11 +232,11 @@ try {
                   "Check DNS settings"
     }
 } catch {
-    Write-Log "Error checking network" "ERROR"
+    Write-StandardLog -Message "Error checking network" -Level "ERROR" -Path $logFile
 }
 
 # 6. Security
-Write-Log "Checking security"
+Write-StandardLog -Message "Checking security" -Level "INFO" -Path $logFile
 
 # Windows Update
 $wu = Get-Service -Name wuauserv -ErrorAction SilentlyContinue
@@ -257,7 +260,7 @@ if ($serverVersion -ne "2008") {
                       "Install Windows Updates"
         }
     } catch {
-        Write-Log "Could not check updates" "WARNING"
+        Write-StandardLog -Message "Could not check updates" -Level "WARN" -Path $logFile
     } finally {
         if ($updateSession) {
             [System.Runtime.InteropServices.Marshal]::ReleaseComObject($updateSession) | Out-Null
@@ -275,7 +278,7 @@ if ($serverVersion -in @('2012','2016','2019','2022')) {
                       "Disable SMBv1 for security"
         }
     } catch {
-        Write-Log "Could not check SMBv1" "WARNING"
+        Write-StandardLog -Message "Could not check SMBv1" -Level "WARN" -Path $logFile
     }
 }
 
@@ -293,7 +296,7 @@ if ($serverVersion -eq "2008") {
             }
         }
     } catch {
-        Write-Log "Could not check firewall" "WARNING"
+        Write-StandardLog -Message "Could not check firewall" -Level "WARN" -Path $logFile
     } finally {
         if ($fw) {
             [System.Runtime.InteropServices.Marshal]::ReleaseComObject($fw) | Out-Null
@@ -309,12 +312,12 @@ if ($serverVersion -eq "2008") {
                       "Enable firewall"
         }
     } catch {
-        Write-Log "Could not check firewall" "WARNING"
+        Write-StandardLog -Message "Could not check firewall" -Level "WARN" -Path $logFile
     }
 }
 
 # 7. Performance
-Write-Log "Checking performance"
+Write-StandardLog -Message "Checking performance" -Level "INFO" -Path $logFile
 try {
     # CPU
     $cpus = Get-CimInstance Win32_Processor
@@ -330,7 +333,7 @@ try {
     
     if ($cpuCount -gt 0) {
         $avgLoad = [Math]::Round($avgLoad / $cpuCount, 2)
-        Write-Log "CPU Load: $avgLoad%"
+        Write-StandardLog -Message "CPU Load: $avgLoad%" -Level "INFO" -Path $logFile
         
         if ($avgLoad -gt 90) {
             Add-Issue "Performance" `
@@ -346,7 +349,7 @@ try {
         
         if ($totalMem -and $totalMem -gt 0) {
             $usedPercent = [Math]::Round((($totalMem - $freeMem) / $totalMem) * 100, 2)
-            Write-Log "Memory Used: $usedPercent%"
+            Write-StandardLog -Message "Memory Used: $usedPercent%" -Level "INFO" -Path $logFile
             
             if ($usedPercent -gt 90) {
                 Add-Issue "Performance" `
@@ -356,7 +359,7 @@ try {
         }
     }
 } catch {
-    Write-Log "Error checking performance" "ERROR"
+    Write-StandardLog -Message "Error checking performance" -Level "ERROR" -Path $logFile
 }
 
 # Generate Report
@@ -389,5 +392,5 @@ if ($issues.Count -gt 0) {
 Write-Host "`nLog: $logFile"
 Write-Host "Report: $reportFile"
 
-Write-Log "Scan completed"
+Write-StandardLog -Message "Scan completed" -Level "INFO" -Path $logFile
 

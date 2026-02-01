@@ -99,7 +99,7 @@ foreach ($tempPath in $tempPaths) {
             }
         }
     } catch {
-        # Jatka silti
+        Write-Verbose "Could not enumerate items in folder: $($_.Exception.Message)"
     }
 }
 

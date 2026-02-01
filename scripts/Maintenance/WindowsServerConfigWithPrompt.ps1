@@ -1,4 +1,5 @@
 #Requires -RunAsAdministrator
+#Requires -Version 5.1
 
 <#
 .SYNOPSIS
@@ -23,6 +24,10 @@ Compatible with PowerShell 5.1 on Server 2019/2022.
 https://docs.microsoft.com/en-us/windows-server/administration/
 #>
 
+param(
+    [string]$LogDirectory = "$env:SystemDrive\Logs"
+)
+
 # Import CommonFunctions for standardized logging
 Import-Module -Name (Join-Path $PSScriptRoot '..\..\CommonFunctions.psm1') -Force -ErrorAction SilentlyContinue
 
@@ -43,12 +48,6 @@ $osVersion = (Get-CimInstance -ClassName Win32_OperatingSystem).Version
 if ($osVersion -notlike "10.0.17763*" -and $osVersion -notlike "10.0.20348*") {
     Write-Warning "This script is optimized for Windows Server 2019/2022. Some features may not work on this OS version: $osVersion"
 }
-
-#Requires -RunAsAdministrator
-
-param(
-    [string]$LogDirectory = "$env:SystemDrive\Logs"
-)
 
 # Log file setup and permission check
 $logFile = Join-Path $LogDirectory "ServerConfig_$(Get-Date -Format 'yyyyMMdd_HHmmss').log"
@@ -100,9 +99,9 @@ function Write-Log {
 function Get-YesNoInput {
     param($Prompt)
     do {
-        $input = (Read-Host $Prompt).ToLower()
-    } while ($input -notmatch '^[yn]$')
-    return $input
+        $response = (Read-Host $Prompt).ToLower()
+    } while ($response -notmatch '^[yn]$')
+    return $response
 }
 
 Write-Log "Starting Windows Server configuration with user prompts."

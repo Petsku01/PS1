@@ -37,7 +37,7 @@ Write-Output "Tm skripti tarkistaa $serviceName-palvelun tilan koneella $compute
 Write-Output "Paina Enter tarkistaaksesi tilan vlittmsti tai Ctrl+C pysyttksesi skriptin."
 
 # Funktio palvelun tarkistamiseen
-function Check-Service {
+function Test-ServiceStatus {
     try {
         # Tarkista, onko kohdekone tavoitettavissa
         if (Test-Connection -ComputerName $computerName -Count 1 -Quiet) {
@@ -66,11 +66,11 @@ while ($true) {
     if ([Console]::KeyAvailable) {
         $key = [Console]::ReadKey($true)
         if ($key.Key -eq [ConsoleKey]::Enter) {
-            Check-Service
+            Test-ServiceStatus
         }
     } else {
         # Suorita automaattinen tarkistus
-        Check-Service
+        Test-ServiceStatus
     }
     # Odota 30 sekuntia, mutta tarkista nppimist sekunnin vlein
     for ($i = 0; $i -lt 30; $i++) {

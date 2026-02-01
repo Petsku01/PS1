@@ -135,18 +135,21 @@ process {
 
         $range = $Start..$End
 
-        $onlineIPs.AddRange(
-            $range | ForEach-Object -Parallel {
-                $ip = "${using:Subnet}$_"
-
-                try {
-                    $success = Test-Connection -TargetName $ip -Count 1 -Quiet `
-                        -IPv4 -TimeoutSeconds $using:timeoutSec -ErrorAction Stop
-                    if ($success) { $ip }
-                }
-                catch {}
-            } -ThrottleLimit $ThrottleLimit
-        )
+        $parallelResults = $range | ForEach-Object -Parallel {
+            $subnet = $using:Subnet
+            $timeout = $using:timeoutSec
+            $ip = "$subnet$_"
+            try {
+                if (Test-Connection -TargetName $ip -Count 1 -Quiet -IPv4 -TimeoutSeconds $timeout -ErrorAction Stop) { $ip }
+            }
+            catch {
+                $null = $_ # Host unreachable - expected for offline IPs
+            }
+        } -ThrottleLimit $ThrottleLimit
+        
+        foreach ($ip in $parallelResults) {
+            if ($ip) { $onlineIPs.Add($ip) }
+        }
     }
     else {
         Write-Host "Sequential scan (PowerShell 5.1)" -ForegroundColor Yellow
@@ -185,8 +188,8 @@ process {
                 $obj.Hostname = $entry.HostName
                 $obj.Resolved = $true
             }
-            catch {
-                # silent - keep 'Unknown'
+            catch [System.Net.Sockets.SocketException] {
+                $null = $_ # DNS resolution failed - keep 'Unknown' hostname
             }
 
             $results.Add($obj)

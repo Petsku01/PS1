@@ -17,8 +17,11 @@ $projectRoot = Split-Path -Parent $scriptRoot
 . (Join-Path $projectRoot 'src\Core\AnalysisResult.ps1')
 . (Join-Path $projectRoot 'src\Analyzers\AstAnalyzer.ps1')
 
-# Load main script
-. (Join-Path $projectRoot 'Update-Scripts.ps1')
+# Import CommonFunctions module for testing
+Import-Module (Join-Path $projectRoot 'CommonFunctions.psm1') -Force
+
+# Note: We don't dot-source Update-Scripts.ps1 directly as it would execute main logic
+# Instead, we test the functions by importing the module components separately
 
 Describe 'XSS Prevention Tests' {
     It 'HTML encodes angle brackets' {

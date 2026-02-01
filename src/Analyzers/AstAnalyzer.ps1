@@ -16,10 +16,12 @@ class AstAnalyzer {
     [object]$Ast
     [array]$ParseErrors
     [string]$ScriptContent
+    [string]$FilePath
     
-    # Constructor
+    # Constructor with content only
     AstAnalyzer([string]$ScriptContent) {
         $this.ScriptContent = $ScriptContent
+        $this.FilePath = ''
         $this.ParseErrors = @()
         
         try {
@@ -31,6 +33,24 @@ class AstAnalyzer {
         }
         catch {
             throw "Failed to parse script: $_"
+        }
+    }
+    
+    # Constructor with content and file path
+    AstAnalyzer([string]$ScriptContent, [string]$FilePath) {
+        $this.ScriptContent = $ScriptContent
+        $this.FilePath = $FilePath
+        $this.ParseErrors = @()
+        
+        try {
+            $this.Ast = [Parser]::ParseInput(
+                $ScriptContent,
+                [ref]$null,
+                [ref]$this.ParseErrors
+            )
+        }
+        catch {
+            throw "Failed to parse script '$FilePath': $_"
         }
     }
     

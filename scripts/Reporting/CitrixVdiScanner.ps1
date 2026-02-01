@@ -25,38 +25,14 @@ Output path for CSV report.
 .NOTES
 Requires Citrix PowerShell SDK.
 Minimal output by design for automation scenarios.
+Author: -pk
+Version: 3.0 - December 2025
 
 .LINK
 https://docs.citrix.com/en-us/citrix-virtual-apps-desktops/sdk-api
 #>
 
 #Requires -Version 5.1
-<#
-.SYNOPSIS
-    Citrix Virtual Apps & Desktops 
-
-.DESCRIPTION
-    Cloud scanner for slow logons, high latency, black screens and failed connections.
-    Works on-premises AND Citrix Cloud. Zero Write-Host spam. Designed for automation in mind.
-
-.AUTHOR
-    -pk
-
-.VERSION
-    3.0  December 2025
-
-.HOW TO USE
-
- On-prem
-Find-CitrixVdiIssues -AdminAddress "ddc01.company.local" -HoursBack 6 -CsvPath "C:\Reports\CitrixIssues_$(Get-Date -F yyyyMMdd_HHmm).csv"
-
-Citrix Cloud (recommended way)
-$token = ConvertTo-SecureString "eyJ..." -AsPlainText -Force
-Find-CitrixVdiIssues -BearerToken $token -CustomerId "customer123" -Quiet | Export-Csv daily.csv -NoTypeInformation
-
-Scheduled task (silent)
-Find-CitrixVdiIssues -AdminAddress ddc01 -Quiet | Where-Object Type -like "*Failure*" | Send-MailMessage ...
-#>
 
 function Find-CitrixVdiIssues {
     [CmdletBinding(DefaultParameterSetName = 'OnPrem')]
@@ -222,6 +198,7 @@ function Find-CitrixVdiIssues {
         }
 
         if ($c.LogOnDuration -and $c.LogOnDuration.TotalSeconds -gt $LogonSeconds) {
+            $logonValue = "{0:N0}s (Brokering {1:N0}s | VMStart {2:N0}s)" -f $c.LogOnDuration.TotalSeconds, $c.BrokeringDuration.TotalSeconds, $c.VMStartDuration.TotalSeconds
             [void]$Issues.Add([pscustomobject]@{
                 PSTypeName = 'Citrix.Issue.SlowLogon'
                 Type       = 'Slow Logon'
@@ -229,10 +206,7 @@ function Find-CitrixVdiIssues {
                 Machine    = $c.MachineName
                 SessionKey = $null
                 ReportedAt = $c.BrokeringTime
-                Value      = "{0:N0}s (Brokering {1:N0}s | VMStart {2:N0}s)" -f
-                            $c.LogOnDuration.TotalSeconds,
-                            $c.BrokeringDuration.TotalSeconds,
-                            $c.VMStartDuration.TotalSeconds
+                Value      = $logonValue
                 Threshold  = "$LogonSeconds`s"
                 Source     = 'Connection Log'
             })

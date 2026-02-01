@@ -213,8 +213,8 @@ function Invoke-MainTask {
     try {
         Write-StandardLog -Message "Starting main task..." -Level "INFO" -Path $script:LogFile
         
-        # Example: Check if we should proceed
-        if ($PSCmdlet.ShouldProcess("System", "Perform main task")) {
+        # Check if we should proceed (respects -WhatIf and -Confirm, or skips if -Force)
+        if ($Force -or $PSCmdlet.ShouldProcess("System", "Perform main task")) {
             
             # Simulate work
             $systemInfo = Get-SystemInformation

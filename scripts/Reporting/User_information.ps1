@@ -1,8 +1,5 @@
 #Requires -Version 5.1
 
-# Import CommonFunctions for standardized logging if available
-Import-Module -Name (Join-Path $PSScriptRoot '..\..\CommonFunctions.psm1') -Force -ErrorAction SilentlyContinue
-
 <#
 .SYNOPSIS
 Displays detailed information about local or Active Directory user accounts.
@@ -44,33 +41,6 @@ Graceful fallback if AD unavailable.
 https://docs.microsoft.com/en-us/powershell/module/activedirectory/get-aduser
 #>
 
-.PARAMETER Username
-    SAM account name, UPN or local username to query
-
-.PARAMETER All
-    Show both local and AD information if both exist
-
-.PARAMETER PreferAD
-    If both exist, show only AD information
-
-.PARAMETER LogPath
-    Optional path for warning/error log file
-
-.PARAMETER AsObject
-    Return raw PSCustomObject(s) instead of formatted output
-
-.PARAMETER Elevate
-    Relaunch script as admin if not elevated (for local queries)
-
-.EXAMPLE
-    Get-UserInfo -Username jsmith -All
-
-.EXAMPLE
-    Get-UserInfo -Username john.smith@corp.example.com -PreferAD -LogPath errors.log
-
-.EXAMPLE
-    Get-UserInfo -Username alice -AsObject | Export-Csv users.csv
-#>
 [CmdletBinding()]
 param (
     [Parameter(Mandatory = $true, Position = 0)]
@@ -93,8 +63,11 @@ param (
 
 begin {
     $ErrorActionPreference = 'Stop'
+    
+    # Import CommonFunctions for standardized logging if available
+    Import-Module -Name (Join-Path $PSScriptRoot '..\..\CommonFunctions.psm1') -Force -ErrorAction SilentlyContinue
 
-    function Write-Log {
+    function Write-LocalLog {
         param ([string]$Message)
         $logMsg = "[$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')] $Message"
         Write-Warning $logMsg
@@ -119,13 +92,13 @@ begin {
 
     if ($Elevate -and -not $isAdmin) {
         Write-Verbose "Relaunching as admin..."
-        $args = "-File `"$PSCommandPath`" -Username `"$Username`""
-        if ($All) { $args += " -All" }
-        if ($PreferAD) { $args += " -PreferAD" }
-        if ($LogPath) { $args += " -LogPath `"$LogPath`"" }
-        if ($AsObject) { $args += " -AsObject" }
+        $relaunchArgs = "-File `"$PSCommandPath`" -Username `"$Username`""
+        if ($All) { $relaunchArgs += " -All" }
+        if ($PreferAD) { $relaunchArgs += " -PreferAD" }
+        if ($LogPath) { $relaunchArgs += " -LogPath `"$LogPath`"" }
+        if ($AsObject) { $relaunchArgs += " -AsObject" }
 
-        Start-Process powershell.exe -Verb RunAs -ArgumentList $args
+        Start-Process powershell.exe -Verb RunAs -ArgumentList $relaunchArgs
         return
     }
 
@@ -144,7 +117,7 @@ begin {
             $canAD = $true
         }
         catch {
-            Write-Log "AD module loaded but connectivity test failed: $($_.Exception.Message)"
+            Write-LocalLog "AD module loaded but connectivity test failed: $($_.Exception.Message)"
         }
     }
 
@@ -164,7 +137,7 @@ process {
             $adUsers = Get-ADUser -Filter $filter -Properties DisplayName,Enabled,LastLogonDate,PasswordLastSet,Description,UserPrincipalName,SamAccountName,DistinguishedName -ErrorAction Stop
 
             if ($adUsers.Count -gt 1) {
-                Write-Log "Multiple AD users found for '$Username'. Using first match."
+                Write-LocalLog "Multiple AD users found for '$Username'. Using first match."
             }
 
             if ($adUsers) {
@@ -186,7 +159,7 @@ process {
             }
         }
         catch {
-            Write-Log "AD query failed: $($_.Exception.Message)"
+            Write-LocalLog "AD query failed: $($_.Exception.Message)"
         }
     }
 
@@ -196,7 +169,7 @@ process {
             $localUsers = Get-LocalUser -Name $Username -ErrorAction Stop
 
             if ($localUsers.Count -gt 1) {
-                Write-Log "Multiple local users found for '$Username'. Using first match."
+                Write-LocalLog "Multiple local users found for '$Username'. Using first match."
             }
 
             if ($localUsers) {
@@ -216,11 +189,11 @@ process {
             }
         }
         catch {
-            Write-Log "Local query failed: $($_.Exception.Message)"
+            Write-LocalLog "Local query failed: $($_.Exception.Message)"
         }
     }
     elseif ($canLocal -and -not $isAdmin) {
-        Write-Log "Local query skipped: not running as admin"
+        Write-LocalLog "Local query skipped: not running as admin"
     }
 }
 
