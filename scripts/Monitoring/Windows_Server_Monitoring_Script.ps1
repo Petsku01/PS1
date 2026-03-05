@@ -48,12 +48,28 @@ param(
     [string]$ConfigPath = "",
     [string]$OutputPath = "$env:TEMP\ServerMonitor",
     [switch]$EmailReport,
+    [string]$SmtpServer = "",
+    [int]$AlertThreshold = 0,
     [switch]$Continuous,
     [int]$Interval = 300
 )
 
+function Write-Console {
+    [CmdletBinding()]
+    param(
+        [Parameter(Position = 0, ValueFromRemainingArguments = $true)]
+        [object[]]$Object,
+        [ConsoleColor]$ForegroundColor,
+        [ConsoleColor]$BackgroundColor,
+        [switch]$NoNewline,
+        [object]$Separator
+    )
+
+    Microsoft.PowerShell.Utility\Write-Host @PSBoundParameters
+}
+
 # Global configuration
-$Global:Config = @{
+$script:Config = @{
     # Performance thresholds
     CPUThreshold = 80
     MemoryThreshold = 85
@@ -83,9 +99,18 @@ $Global:Config = @{
     ReportFormat = "HTML"  # HTML, JSON, or CSV
 }
 
+if ($SmtpServer) {
+    $script:Config.SMTPServer = $SmtpServer
+}
+
+if ($AlertThreshold -gt 0) {
+    $script:Config.CPUThreshold = $AlertThreshold
+    $script:Config.MemoryThreshold = $AlertThreshold
+}
+
 # Initialize logging
-$Global:LogFile = Join-Path $OutputPath "ServerMonitor_$(Get-Date -Format 'yyyyMMdd').log"
-$Global:Alerts = @()
+$script:LogFile = Join-Path $OutputPath "ServerMonitor_$(Get-Date -Format 'yyyyMMdd').log"
+$script:Alerts = @()
 
 #region Helper Functions
 
@@ -103,7 +128,7 @@ function Write-Log {
     try {
         # Use CommonFunctions if available
         if (Get-Command Write-StandardLog -ErrorAction SilentlyContinue) {
-            Write-StandardLog -Message $Message -Level $Level -Path $Global:LogFile
+            Write-StandardLog -Message $Message -Level $Level -Path $script:LogFile
         } else {
             # Fallback implementation
             $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
@@ -115,7 +140,7 @@ function Write-Log {
             }
             
             # Write to log file
-            Add-Content -Path $Global:LogFile -Value $logEntry -ErrorAction SilentlyContinue
+            Add-Content -Path $script:LogFile -Value $logEntry -ErrorAction SilentlyContinue
             
             # Write to console with color coding
             switch ($Level) {
@@ -152,7 +177,7 @@ function Add-Alert {
         ComputerName = $env:COMPUTERNAME
     }
     
-    $Global:Alerts += $alert
+    $script:Alerts += $alert
     Write-Log "ALERT [$Severity] $Category - $Message" -Level "WARN"
 }
 
@@ -219,14 +244,14 @@ function Get-CPUUsage {
         $cpuPercent = [math]::Round(100 - (($cpu2.PercentIdleTime - $cpu1.PercentIdleTime) / ($cpu2.TimeStamp_Sys100NS - $cpu1.TimeStamp_Sys100NS) * 100), 2)
         
         # Check threshold
-        if ($cpuPercent -gt $Global:Config.CPUThreshold) {
-            Add-Alert -Category "Performance" -Severity "HIGH" -Message "High CPU usage: $cpuPercent%" -Details "Threshold: $($Global:Config.CPUThreshold)%"
+        if ($cpuPercent -gt $script:Config.CPUThreshold) {
+            Add-Alert -Category "Performance" -Severity "HIGH" -Message "High CPU usage: $cpuPercent%" -Details "Threshold: $($script:Config.CPUThreshold)%"
         }
         
         return [PSCustomObject]@{
             CPUUsagePercent = $cpuPercent
-            Threshold = $Global:Config.CPUThreshold
-            Status = if ($cpuPercent -gt $Global:Config.CPUThreshold) { "WARNING" } else { "OK" }
+            Threshold = $script:Config.CPUThreshold
+            Status = if ($cpuPercent -gt $script:Config.CPUThreshold) { "WARNING" } else { "OK" }
         }
     }
     catch {
@@ -250,8 +275,8 @@ function Get-MemoryUsage {
         $memoryPercent = [math]::Round(($usedMemory / $totalMemory) * 100, 2)
         
         # Check threshold
-        if ($memoryPercent -gt $Global:Config.MemoryThreshold) {
-            Add-Alert -Category "Performance" -Severity "HIGH" -Message "High memory usage: $memoryPercent%" -Details "Threshold: $($Global:Config.MemoryThreshold)%"
+        if ($memoryPercent -gt $script:Config.MemoryThreshold) {
+            Add-Alert -Category "Performance" -Severity "HIGH" -Message "High memory usage: $memoryPercent%" -Details "Threshold: $($script:Config.MemoryThreshold)%"
         }
         
         return [PSCustomObject]@{
@@ -259,8 +284,8 @@ function Get-MemoryUsage {
             UsedMemoryGB = [math]::Round($usedMemory / 1GB, 2)
             FreeMemoryGB = [math]::Round($freeMemory / 1GB, 2)
             MemoryUsagePercent = $memoryPercent
-            Threshold = $Global:Config.MemoryThreshold
-            Status = if ($memoryPercent -gt $Global:Config.MemoryThreshold) { "WARNING" } else { "OK" }
+            Threshold = $script:Config.MemoryThreshold
+            Status = if ($memoryPercent -gt $script:Config.MemoryThreshold) { "WARNING" } else { "OK" }
         }
     }
     catch {
@@ -287,7 +312,7 @@ function Get-DiskUsage {
             $usagePercent = if ($totalSpaceGB -gt 0) { [math]::Round(($usedSpaceGB / $totalSpaceGB) * 100, 2) } else { 0 }
             
             $status = "OK"
-            if ($freeSpaceGB -lt $Global:Config.DiskSpaceThreshold -or $usagePercent -gt $Global:Config.DiskUsageThreshold) {
+            if ($freeSpaceGB -lt $script:Config.DiskSpaceThreshold -or $usagePercent -gt $script:Config.DiskUsageThreshold) {
                 $status = "WARNING"
                 Add-Alert -Category "Storage" -Severity "MEDIUM" -Message "Low disk space on $($disk.DeviceID)" -Details "Free: $freeSpaceGB GB ($usagePercent% used)"
             }
@@ -325,9 +350,9 @@ function Test-NetworkConnectivity {
         
         $networkTests = @()
         
-        foreach ($target in $Global:Config.PingTargets) {
+        foreach ($target in $script:Config.PingTargets) {
             try {
-                $ping = Test-Connection -ComputerName $target -Count 3 -Quiet -TimeoutSeconds ($Global:Config.NetworkTimeoutMs / 1000)
+                $ping = Test-Connection -ComputerName $target -Count 3 -Quiet -TimeoutSeconds ($script:Config.NetworkTimeoutMs / 1000)
                 $status = if ($ping) { "OK" } else { "FAILED" }
                 
                 if (-not $ping) {
@@ -411,7 +436,7 @@ function Get-ServiceStatus {
         
         $serviceStatus = @()
         
-        foreach ($serviceName in $Global:Config.CriticalServices) {
+        foreach ($serviceName in $script:Config.CriticalServices) {
             try {
                 $service = Get-Service -Name $serviceName -ErrorAction SilentlyContinue
                 
@@ -462,7 +487,7 @@ function Get-RecentErrors {
     try {
         Write-Log "Checking recent error events..." -Level "DEBUG"
         
-        $cutoffTime = (Get-Date).AddHours(-$Global:Config.MaxEventAge)
+        $cutoffTime = (Get-Date).AddHours(-$script:Config.MaxEventAge)
         $errorEvents = @()
         
         $logNames = @("System", "Application", "Security")
@@ -489,7 +514,7 @@ function Get-RecentErrors {
         }
         
         # Alert on critical events
-        $criticalEvents = $errorEvents | Where-Object { $_.EventID -in $Global:Config.CriticalEventIDs }
+        $criticalEvents = $errorEvents | Where-Object { $_.EventID -in $script:Config.CriticalEventIDs }
         foreach ($criticalEvent in $criticalEvents) {
             Add-Alert -Category "EventLog" -Severity "HIGH" -Message "Critical event detected: ID $($criticalEvent.EventID)" -Details $criticalEvent.Message
         }
@@ -775,8 +800,8 @@ function New-HTMLReport {
         <h2>Alerts</h2>
 "@
 
-        if ($Global:Alerts.Count -gt 0) {
-            foreach ($alert in $Global:Alerts) {
+        if ($script:Alerts.Count -gt 0) {
+            foreach ($alert in $script:Alerts) {
                 $alertClass = switch ($alert.Severity) {
                     'HIGH' { 'alert-high' }
                     'MEDIUM' { 'alert-medium' }
@@ -943,14 +968,14 @@ function Send-EmailAlert {
         Write-Log "Sending email alert..." -Level "DEBUG"
         
         # Check if we have any high-priority alerts
-        $criticalAlerts = $Global:Alerts | Where-Object { $_.Severity -eq "HIGH" }
+        $criticalAlerts = $script:Alerts | Where-Object { $_.Severity -eq "HIGH" }
         
         if ($criticalAlerts.Count -eq 0 -and !$Continuous) {
             Write-Log "No critical alerts to email." -Level "DEBUG"
             return $true
         }
         
-        $subject = $Global:Config.EmailSubject -f $MonitoringData.SystemInfo.ComputerName
+        $subject = $script:Config.EmailSubject -f $MonitoringData.SystemInfo.ComputerName
         
         # Create email body
         $body = @"
@@ -958,7 +983,7 @@ Server Monitoring Alert - $($MonitoringData.SystemInfo.ComputerName)
 Generated: $(Get-Date -Format "yyyy-MM-dd HH:mm:ss")
 
 SUMMARY:
-- Total Alerts: $($Global:Alerts.Count)
+- Total Alerts: $($script:Alerts.Count)
 - Critical Alerts: $($criticalAlerts.Count)
 - CPU Usage: $($MonitoringData.Performance.CPU.CPUUsagePercent)%
 - Memory Usage: $($MonitoringData.Performance.Memory.MemoryUsagePercent)%
@@ -978,22 +1003,28 @@ CRITICAL ALERTS:
         
         # Send email (requires proper SMTP configuration)
         $emailParams = @{
-            To = $Global:Config.EmailTo
-            From = $Global:Config.EmailFrom
+            To = $script:Config.EmailTo
+            From = $script:Config.EmailFrom
             Subject = $subject
             Body = $body
-            SmtpServer = $Global:Config.SMTPServer
-            Port = $Global:Config.SMTPPort
+            SmtpServer = $script:Config.SMTPServer
+            Port = $script:Config.SMTPPort
             Attachments = $ReportPath
         }
         
         # Note: This is a basic example. In production, you'd want to handle authentication
-        if ($emailParams.SmtpServer -and $emailParams.To) {
-            # Send-MailMessage @emailParams
-            Write-Verbose "Email params configured: $($emailParams | ConvertTo-Json -Compress)"
+        if (-not $emailParams.SmtpServer -or -not $emailParams.To) {
+            Write-Log "SMTP settings incomplete. Email alert skipped." -Level "WARN"
+            return $false
         }
-        
-        Write-Log "Email alert would be sent to: $($Global:Config.EmailTo -join ', ')" -Level "INFO"
+
+        if (-not (Get-Command Send-MailMessage -ErrorAction SilentlyContinue)) {
+            Write-Log "Send-MailMessage cmdlet not available. Email alert skipped." -Level "WARN"
+            return $false
+        }
+
+        Send-MailMessage @emailParams -ErrorAction Stop
+        Write-Log "Email alert sent to: $($script:Config.EmailTo -join ', ')" -Level "INFO"
         return $true
     }
     catch {
@@ -1010,7 +1041,7 @@ function Remove-OldReports {
     try {
         Write-Log "Cleaning up old reports..." -Level "DEBUG"
         
-        $cutoffDate = (Get-Date).AddDays(-$Global:Config.MaxReportAge)
+        $cutoffDate = (Get-Date).AddDays(-$script:Config.MaxReportAge)
         $reportFiles = Get-ChildItem -Path $OutputPath -Filter "*.html" | Where-Object { $_.CreationTime -lt $cutoffDate }
         
         foreach ($file in $reportFiles) {
@@ -1044,7 +1075,7 @@ function Start-ServerMonitoring {
         Write-Log "=== Starting Server Monitoring ===" -Level "INFO"
         
         # Clear previous alerts
-        $Global:Alerts = @()
+        $script:Alerts = @()
         
         # Gather all monitoring data
         $monitoringData = @{
@@ -1083,7 +1114,7 @@ function Start-ServerMonitoring {
         Remove-OldReports
         
         # Summary
-        $alertSummary = $Global:Alerts | Group-Object Severity | ForEach-Object { "$($_.Count) $($_.Name)" }
+        $alertSummary = $script:Alerts | Group-Object Severity | ForEach-Object { "$($_.Count) $($_.Name)" }
         Write-Log "Monitoring completed. Alerts: $($alertSummary -join ', ')" -Level "INFO"
         
         return $monitoringData
@@ -1112,7 +1143,7 @@ try {
         try {
             $customConfig = Get-Content $ConfigPath | ConvertFrom-Json -AsHashtable
             foreach ($key in $customConfig.Keys) {
-                $Global:Config[$key] = $customConfig[$key]
+                $script:Config[$key] = $customConfig[$key]
             }
             Write-Log "Configuration loaded from: $ConfigPath" -Level "INFO"
         }
@@ -1134,14 +1165,14 @@ try {
             $results = Start-ServerMonitoring
             
             if ($results) {
-                $alertCount = $Global:Alerts.Count
-                $criticalCount = ($Global:Alerts | Where-Object { $_.Severity -eq "HIGH" }).Count
-                Write-Host "`n=== Monitoring Cycle Complete ===" -ForegroundColor Cyan
-                Write-Host "Timestamp: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')" -ForegroundColor White
-                Write-Host "Total Alerts: $alertCount" -ForegroundColor $(if ($alertCount -gt 0) { "Yellow" } else { "Green" })
-                Write-Host "Critical Alerts: $criticalCount" -ForegroundColor $(if ($criticalCount -gt 0) { "Red" } else { "Green" })
-                Write-Host "CPU: $($results.Performance.CPU.CPUUsagePercent)% | Memory: $($results.Performance.Memory.MemoryUsagePercent)%" -ForegroundColor White
-                Write-Host "Next check in $Interval seconds...`n" -ForegroundColor Gray
+                $alertCount = $script:Alerts.Count
+                $criticalCount = ($script:Alerts | Where-Object { $_.Severity -eq "HIGH" }).Count
+                Write-Console "`n=== Monitoring Cycle Complete ===" -ForegroundColor Cyan
+                Write-Console "Timestamp: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')" -ForegroundColor White
+                Write-Console "Total Alerts: $alertCount" -ForegroundColor $(if ($alertCount -gt 0) { "Yellow" } else { "Green" })
+                Write-Console "Critical Alerts: $criticalCount" -ForegroundColor $(if ($criticalCount -gt 0) { "Red" } else { "Green" })
+                Write-Console "CPU: $($results.Performance.CPU.CPUUsagePercent)% | Memory: $($results.Performance.Memory.MemoryUsagePercent)%" -ForegroundColor White
+                Write-Console "Next check in $Interval seconds...`n" -ForegroundColor Gray
             }
             
             Start-Sleep -Seconds $Interval
@@ -1152,21 +1183,21 @@ try {
         $results = Start-ServerMonitoring
         
         if ($results) {
-            Write-Host "`n=== Monitoring Summary ===" -ForegroundColor Cyan
-            Write-Host "Server: $($results.SystemInfo.ComputerName)" -ForegroundColor White
-            Write-Host "Total Alerts: $($Global:Alerts.Count)" -ForegroundColor $(if ($Global:Alerts.Count -gt 0) { "Yellow" } else { "Green" })
-            Write-Host "CPU Usage: $($results.Performance.CPU.CPUUsagePercent)%" -ForegroundColor White
-            Write-Host "Memory Usage: $($results.Performance.Memory.MemoryUsagePercent)%" -ForegroundColor White
+            Write-Console "`n=== Monitoring Summary ===" -ForegroundColor Cyan
+            Write-Console "Server: $($results.SystemInfo.ComputerName)" -ForegroundColor White
+            Write-Console "Total Alerts: $($script:Alerts.Count)" -ForegroundColor $(if ($script:Alerts.Count -gt 0) { "Yellow" } else { "Green" })
+            Write-Console "CPU Usage: $($results.Performance.CPU.CPUUsagePercent)%" -ForegroundColor White
+            Write-Console "Memory Usage: $($results.Performance.Memory.MemoryUsagePercent)%" -ForegroundColor White
             
-            if ($Global:Alerts.Count -gt 0) {
-                Write-Host "`nAlerts Generated:" -ForegroundColor Yellow
-                foreach ($alert in $Global:Alerts | Sort-Object Severity -Descending) {
+            if ($script:Alerts.Count -gt 0) {
+                Write-Console "`nAlerts Generated:" -ForegroundColor Yellow
+                foreach ($alert in $script:Alerts | Sort-Object Severity -Descending) {
                     $color = switch ($alert.Severity) {
                         'HIGH' { 'Red' }
                         'MEDIUM' { 'Yellow' }
                         default { 'White' }
                     }
-                    Write-Host "  [$($alert.Severity)] $($alert.Category): $($alert.Message)" -ForegroundColor $color
+                    Write-Console "  [$($alert.Severity)] $($alert.Category): $($alert.Message)" -ForegroundColor $color
                 }
             }
         }
@@ -1181,4 +1212,7 @@ finally {
 }
 
 #endregion
+
+
+
 

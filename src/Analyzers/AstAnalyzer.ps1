@@ -61,10 +61,7 @@ class AstAnalyzer {
         try {
             $calls = $this.Ast.FindAll({
                 $args[0] -is [CommandAst] -and
-                $args[0].CommandElements -and
-                $args[0].CommandElements.Count -gt 0 -and
-                $null -ne $args[0].CommandElements[0].Value -and
-                $args[0].CommandElements[0].Value -eq $CommandName
+                $args[0].GetCommandName() -eq $CommandName
             }, $true)
             
             return @($calls)
@@ -152,11 +149,22 @@ class AstAnalyzer {
                 try {
                     $typeName = 'object'
                     if ($param -and $param.Attributes -and $param.Attributes.TypeAst) {
-                        $typeName = $param.Attributes.TypeAst.TypeName.Name ?? 'object'
+                        $resolvedTypeName = $param.Attributes.TypeAst.TypeName.Name
+                        if (-not [string]::IsNullOrWhiteSpace($resolvedTypeName)) {
+                            $typeName = $resolvedTypeName
+                        }
+                    }
+
+                    $parameterName = 'Unknown'
+                    if ($param -and $param.Name -and $param.Name.VariablePath) {
+                        $resolvedParameterName = $param.Name.VariablePath.UserPath
+                        if (-not [string]::IsNullOrWhiteSpace($resolvedParameterName)) {
+                            $parameterName = $resolvedParameterName
+                        }
                     }
                     
                     $result += [PSCustomObject]@{
-                        Name = $param.Name.VariablePath.UserPath ?? 'Unknown'
+                        Name = $parameterName
                         Type = $typeName
                         IsMandatory = $null -ne ($param.Attributes | Where-Object { 
                             $_ -is [AttributeAst] -and 
@@ -235,14 +243,28 @@ class AstAnalyzer {
         
         $assignments = $this.FindAssignments()
         foreach ($assignment in $assignments) {
-            $varName = $assignment.Left.VariablePath.UserPath
+            $varName = $null
+            $assignedValue = $null
+
+            if ($assignment.Left -is [VariableExpressionAst] -and $assignment.Left.VariablePath) {
+                $varName = $assignment.Left.VariablePath.UserPath
+            }
+
+            if ([string]::IsNullOrWhiteSpace($varName)) {
+                continue
+            }
+
+            if ($assignment.Right -is [StringConstantExpressionAst] -or $assignment.Right -is [ExpandableStringExpressionAst]) {
+                $assignedValue = $assignment.Right.Value
+            }
+            elseif ($assignment.Right -is [CommandExpressionAst] -and
+                    ($assignment.Right.Expression -is [StringConstantExpressionAst] -or $assignment.Right.Expression -is [ExpandableStringExpressionAst])) {
+                $assignedValue = $assignment.Right.Expression.Value
+            }
             
             # Look for password-like variable names with string assignments
             if ($varName -match 'password|credential|secret|token|key|passwd|pwd' -and 
-                $assignment.Right -is [StringConstantExpressionAst]) {
-                
-                $value = $assignment.Right.Value
-                if ($value -and $value.Length -gt 0) {
+                $null -ne $assignedValue -and $assignedValue.Length -gt 0) {
                     $issues += [PSCustomObject]@{
                         VariableName = $varName
                         LineNumber = $assignment.Extent.StartLineNumber
@@ -250,7 +272,6 @@ class AstAnalyzer {
                         Issue = 'Hardcoded Credential'
                     }
                 }
-            }
         }
         
         return @($issues)
@@ -273,9 +294,13 @@ class AstAnalyzer {
                         $nextElement = $command.CommandElements[$i + 1]
                         if ($nextElement -is [StringConstantExpressionAst] -and 
                             $nextElement.Value -eq 'SilentlyContinue') {
+                            $resolvedCommandName = $command.GetCommandName()
+                            if ([string]::IsNullOrWhiteSpace($resolvedCommandName)) {
+                                $resolvedCommandName = '<unknown>'
+                            }
                             
                             $issues += [PSCustomObject]@{
-                                Command = $command.CommandElements[0].Value
+                                Command = $resolvedCommandName
                                 Parameter = 'ErrorAction'
                                 Value = 'SilentlyContinue'
                                 LineNumber = $command.Extent.StartLineNumber

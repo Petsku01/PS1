@@ -20,7 +20,7 @@ Remove startup launcher registration instead of installing.
 .\SetupStartup.ps1 -Uninstall
 
 .NOTES
-Requires Administrator privileges for registry modification.
+Administrator privileges are optional for per-user Startup folder setup.
 Uses VBS wrapper for silent execution without command window.
 
 .LINK
@@ -28,7 +28,6 @@ https://docs.microsoft.com/en-us/windows/win32/sysinfo/run-registry-key
 #>
 
 #Requires -Version 5.1
-#Requires -RunAsAdministrator
 
 # PowerShell script to automate the creation and setup of .bat and .vbs files
 # This script sets up a PowerShell script to run automatically on startup without a black command prompt window
@@ -40,6 +39,20 @@ param(
     [Parameter()]
     [switch]$Uninstall
 )
+
+function Write-Console {
+    [CmdletBinding()]
+    param(
+        [Parameter(Position = 0, ValueFromRemainingArguments = $true)]
+        [object[]]$Object,
+        [ConsoleColor]$ForegroundColor,
+        [ConsoleColor]$BackgroundColor,
+        [switch]$NoNewline,
+        [object]$Separator
+    )
+
+    Microsoft.PowerShell.Utility\Write-Host @PSBoundParameters
+}
 
 # Define paths dynamically
 $scriptDir = $PSScriptRoot
@@ -63,10 +76,10 @@ function Remove-StartupFiles {
     if (Test-Path $vbsStartupPath) {
         try {
             Remove-Item -Path $vbsStartupPath -Force -ErrorAction Stop
-            Write-Host "Removed .vbs file from Startup folder" -ForegroundColor Green
+            Write-Console "Removed .vbs file from Startup folder" -ForegroundColor Green
             $removed = $true
         } catch {
-            Write-Host "Error removing .vbs file from Startup: $_" -ForegroundColor Red
+            Write-Console "Error removing .vbs file from Startup: $_" -ForegroundColor Red
         }
     }
     
@@ -74,33 +87,33 @@ function Remove-StartupFiles {
     if (Test-Path $batPath) {
         try {
             Remove-Item -Path $batPath -Force -ErrorAction Stop
-            Write-Host "Removed local .bat file" -ForegroundColor Green
+            Write-Console "Removed local .bat file" -ForegroundColor Green
             $removed = $true
         } catch {
-            Write-Host "Error removing .bat file: $_" -ForegroundColor Red
+            Write-Console "Error removing .bat file: $_" -ForegroundColor Red
         }
     }
     
     if (Test-Path $vbsPath) {
         try {
             Remove-Item -Path $vbsPath -Force -ErrorAction Stop
-            Write-Host "Removed local .vbs file" -ForegroundColor Green
+            Write-Console "Removed local .vbs file" -ForegroundColor Green
             $removed = $true
         } catch {
-            Write-Host "Error removing .vbs file: $_" -ForegroundColor Red
+            Write-Console "Error removing .vbs file: $_" -ForegroundColor Red
         }
     }
     
     if ($removed) {
-        Write-Host "`nUninstall complete!" -ForegroundColor Green
+        Write-Console "`nUninstall complete!" -ForegroundColor Green
     } else {
-        Write-Host "`nNo startup files found to remove." -ForegroundColor Yellow
+        Write-Console "`nNo startup files found to remove." -ForegroundColor Yellow
     }
 }
 
 # Handle uninstall
 if ($Uninstall) {
-    Write-Host "Uninstalling startup script..." -ForegroundColor Yellow
+    Write-Console "Uninstalling startup script..." -ForegroundColor Yellow
     Remove-StartupFiles
     Pause
     exit 0
@@ -109,22 +122,22 @@ if ($Uninstall) {
 # Check if running as administrator (optional enhancement)
 $isAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")
 if (-not $isAdmin) {
-    Write-Host "Note: Running without administrator privileges. Some features may be limited." -ForegroundColor Yellow
+    Write-Console "Note: Running without administrator privileges. Some features may be limited." -ForegroundColor Yellow
 }
 
 # Check if the main script exists
 if (-not (Test-Path $scriptPath)) {
-    Write-Host "Error: The script '$MainScriptName' was not found in the same directory as this setup script." -ForegroundColor Red
-    Write-Host "Directory: '$scriptDir'" -ForegroundColor Red
-    Write-Host "`nPlease ensure that the file '$MainScriptName' is saved in the same directory as this setup script." -ForegroundColor Red
+    Write-Console "Error: The script '$MainScriptName' was not found in the same directory as this setup script." -ForegroundColor Red
+    Write-Console "Directory: '$scriptDir'" -ForegroundColor Red
+    Write-Console "`nPlease ensure that the file '$MainScriptName' is saved in the same directory as this setup script." -ForegroundColor Red
     
     # List available .ps1 files in the directory
     $ps1Files = Get-ChildItem -Path $scriptDir -Filter "*.ps1" | Where-Object { $_.Name -ne (Split-Path -Leaf $MyInvocation.MyCommand.Path) }
     if ($ps1Files) {
-        Write-Host "`nAvailable PowerShell scripts in the directory:" -ForegroundColor Cyan
+        Write-Console "`nAvailable PowerShell scripts in the directory:" -ForegroundColor Cyan
         $ps1Files | ForEach-Object { Write-Host "  - $($_.Name)" -ForegroundColor Gray }
-        Write-Host "`nRun this script with -MainScriptName parameter to specify a different script." -ForegroundColor Cyan
-        Write-Host "Example: .\SetupScript.ps1 -MainScriptName 'YourScript.ps1'" -ForegroundColor Gray
+        Write-Console "`nRun this script with -MainScriptName parameter to specify a different script." -ForegroundColor Cyan
+        Write-Console "Example: .\SetupScript.ps1 -MainScriptName 'YourScript.ps1'" -ForegroundColor Gray
     }
     
     Pause
@@ -138,12 +151,12 @@ if (Test-Path $batPath) { $existingFiles += "Local .bat" }
 if (Test-Path $vbsPath) { $existingFiles += "Local .vbs" }
 
 if ($existingFiles.Count -gt 0) {
-    Write-Host "Warning: The following startup files already exist:" -ForegroundColor Yellow
+    Write-Console "Warning: The following startup files already exist:" -ForegroundColor Yellow
     $existingFiles | ForEach-Object { Write-Host "  - $_" -ForegroundColor Gray }
     
     $response = Read-Host "`nDo you want to overwrite them? (Y/N)"
     if ($response -ne 'Y' -and $response -ne 'y') {
-        Write-Host "Setup cancelled." -ForegroundColor Yellow
+        Write-Console "Setup cancelled." -ForegroundColor Yellow
         Pause
         exit 0
     }
@@ -172,9 +185,9 @@ if errorlevel 1 (
 
 try {
     Set-Content -Path $batPath -Value $batContent -Force -ErrorAction Stop
-    Write-Host " Created .bat file: $batFileName" -ForegroundColor Green
+    Write-Console " Created .bat file: $batFileName" -ForegroundColor Green
 } catch {
-    Write-Host " Error: Could not create .bat file '$batFileName': $_" -ForegroundColor Red
+    Write-Console " Error: Could not create .bat file '$batFileName': $_" -ForegroundColor Red
     Pause
     exit 1
 }
@@ -196,9 +209,9 @@ Set WShell = Nothing
 
 try {
     Set-Content -Path $vbsPath -Value $vbsContent -Force -ErrorAction Stop
-    Write-Host " Created .vbs file: $vbsFileName" -ForegroundColor Green
+    Write-Console " Created .vbs file: $vbsFileName" -ForegroundColor Green
 } catch {
-    Write-Host " Error: Could not create .vbs file '$vbsFileName': $_" -ForegroundColor Red
+    Write-Console " Error: Could not create .vbs file '$vbsFileName': $_" -ForegroundColor Red
     Pause
     exit 1
 }
@@ -207,9 +220,9 @@ try {
 if (-not (Test-Path $startupFolder)) {
     try {
         New-Item -Path $startupFolder -ItemType Directory -Force -ErrorAction Stop | Out-Null
-        Write-Host " Created Startup folder" -ForegroundColor Green
+        Write-Console " Created Startup folder" -ForegroundColor Green
     } catch {
-        Write-Host " Error: Could not create Startup folder: $_" -ForegroundColor Red
+        Write-Console " Error: Could not create Startup folder: $_" -ForegroundColor Red
         Pause
         exit 1
     }
@@ -218,11 +231,11 @@ if (-not (Test-Path $startupFolder)) {
 # 4. Copy the .vbs file to the Startup folder
 try {
     Copy-Item -Path $vbsPath -Destination $vbsStartupPath -Force -ErrorAction Stop
-    Write-Host " Copied .vbs file to Startup folder" -ForegroundColor Green
+    Write-Console " Copied .vbs file to Startup folder" -ForegroundColor Green
 } catch {
-    Write-Host " Error: Could not copy .vbs file to Startup folder: $_" -ForegroundColor Red
-    Write-Host "  Destination: '$vbsStartupPath'" -ForegroundColor Red
-    Write-Host "  Ensure you have write permissions to the Startup folder." -ForegroundColor Red
+    Write-Console " Error: Could not copy .vbs file to Startup folder: $_" -ForegroundColor Red
+    Write-Console "  Destination: '$vbsStartupPath'" -ForegroundColor Red
+    Write-Console "  Ensure you have write permissions to the Startup folder." -ForegroundColor Red
     Pause
     exit 1
 }
@@ -230,40 +243,41 @@ try {
 # 5. Verify the setup
 $verificationPassed = $true
 if (-not (Test-Path $batPath)) {
-    Write-Host " Verification failed: .bat file not found" -ForegroundColor Red
+    Write-Console " Verification failed: .bat file not found" -ForegroundColor Red
     $verificationPassed = $false
 }
 if (-not (Test-Path $vbsPath)) {
-    Write-Host " Verification failed: .vbs file not found" -ForegroundColor Red
+    Write-Console " Verification failed: .vbs file not found" -ForegroundColor Red
     $verificationPassed = $false
 }
 if (-not (Test-Path $vbsStartupPath)) {
-    Write-Host " Verification failed: .vbs file not in Startup folder" -ForegroundColor Red
+    Write-Console " Verification failed: .vbs file not in Startup folder" -ForegroundColor Red
     $verificationPassed = $false
 }
 
 # 6. Show success or failure
-Write-Host "`n" -NoNewline
-Write-Host ("=" * 60) -ForegroundColor Cyan
+Write-Console "`n" -NoNewline
+Write-Console ("=" * 60) -ForegroundColor Cyan
 if ($verificationPassed) {
-    Write-Host "SETUP COMPLETE!" -ForegroundColor Green
-    Write-Host ("=" * 60) -ForegroundColor Cyan
-    Write-Host "`nThe script '$MainScriptName' will now run automatically" -ForegroundColor Green
-    Write-Host "on Windows startup without showing a command prompt window." -ForegroundColor Green
-    Write-Host "`nSetup Details:" -ForegroundColor Cyan
-    Write-Host "  Main Script: $scriptPath" -ForegroundColor Gray
-    Write-Host "  Startup VBS: $vbsStartupPath" -ForegroundColor Gray
-    Write-Host "`nNext Steps:" -ForegroundColor Yellow
-    Write-Host "  1. Restart your computer to test the startup script" -ForegroundColor Gray
-    Write-Host "  2. To uninstall, run this script with -Uninstall parameter" -ForegroundColor Gray
-    Write-Host "     Example: .\SetupScript.ps1 -Uninstall" -ForegroundColor Gray
+    Write-Console "SETUP COMPLETE!" -ForegroundColor Green
+    Write-Console ("=" * 60) -ForegroundColor Cyan
+    Write-Console "`nThe script '$MainScriptName' will now run automatically" -ForegroundColor Green
+    Write-Console "on Windows startup without showing a command prompt window." -ForegroundColor Green
+    Write-Console "`nSetup Details:" -ForegroundColor Cyan
+    Write-Console "  Main Script: $scriptPath" -ForegroundColor Gray
+    Write-Console "  Startup VBS: $vbsStartupPath" -ForegroundColor Gray
+    Write-Console "`nNext Steps:" -ForegroundColor Yellow
+    Write-Console "  1. Restart your computer to test the startup script" -ForegroundColor Gray
+    Write-Console "  2. To uninstall, run this script with -Uninstall parameter" -ForegroundColor Gray
+    Write-Console "     Example: .\SetupScript.ps1 -Uninstall" -ForegroundColor Gray
 } else {
-    Write-Host "SETUP INCOMPLETE!" -ForegroundColor Red
-    Write-Host ("=" * 60) -ForegroundColor Cyan
-    Write-Host "`nSome files could not be verified. Please check the errors above." -ForegroundColor Red
-    Write-Host "You may need to run this script as Administrator." -ForegroundColor Yellow
+    Write-Console "SETUP INCOMPLETE!" -ForegroundColor Red
+    Write-Console ("=" * 60) -ForegroundColor Cyan
+    Write-Console "`nSome files could not be verified. Please check the errors above." -ForegroundColor Red
+    Write-Console "You may need to run this script as Administrator." -ForegroundColor Yellow
 }
 
-Write-Host "`nPress any key to exit..." -ForegroundColor Gray
+Write-Console "`nPress any key to exit..." -ForegroundColor Gray
 Pause
+
 

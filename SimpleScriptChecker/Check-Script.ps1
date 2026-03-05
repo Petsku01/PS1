@@ -43,6 +43,20 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Continue'
 $script:Issues = @()
 
+function Write-Console {
+    [CmdletBinding()]
+    param(
+        [Parameter(Position = 0, ValueFromRemainingArguments = $true)]
+        [object[]]$Object,
+        [ConsoleColor]$ForegroundColor,
+        [ConsoleColor]$BackgroundColor,
+        [switch]$NoNewline,
+        [object]$Separator
+    )
+
+    Microsoft.PowerShell.Utility\Write-Host @PSBoundParameters
+}
+
 function Test-ScriptSyntax {
     param([string]$FilePath, [string]$Content)
     
@@ -322,7 +336,7 @@ function New-SimpleReport {
 "@
     
         $html | Out-File $reportPath -Encoding UTF8 -ErrorAction Stop
-        Write-Host "`nReport saved: $reportPath" -ForegroundColor Green
+        Write-Console "`nReport saved: $reportPath" -ForegroundColor Green
         
         try {
             Start-Process $reportPath -ErrorAction Stop
@@ -338,9 +352,9 @@ function New-SimpleReport {
 }
 
 # Main execution
-Write-Host "Simple Script Checker v1.1" -ForegroundColor Cyan
-Write-Host "Author: -pk" -ForegroundColor Gray
-Write-Host "==========================`n" -ForegroundColor Cyan
+Write-Console "Simple Script Checker v1.1" -ForegroundColor Cyan
+Write-Console "Author: -pk" -ForegroundColor Gray
+Write-Console "==========================`n" -ForegroundColor Cyan
 
 if (-not (Test-Path $ScriptPath)) {
     Write-Error "Path not found: $ScriptPath"
@@ -350,26 +364,26 @@ if (-not (Test-Path $ScriptPath)) {
 $scriptsToCheck = @()
 
 if (Test-Path $ScriptPath -PathType Container) {
-    Write-Host "Scanning folder: $ScriptPath" -ForegroundColor Yellow
+    Write-Console "Scanning folder: $ScriptPath" -ForegroundColor Yellow
     $scriptsToCheck = @(Get-ChildItem -Path $ScriptPath -Include "*.ps1","*.psm1" -Recurse -File -ErrorAction SilentlyContinue)
     if ($scriptsToCheck.Count -eq 0) {
-        Write-Host "No PowerShell scripts found" -ForegroundColor Red
+        Write-Console "No PowerShell scripts found" -ForegroundColor Red
         exit 1
     }
 }
 else {
     if ($ScriptPath -notlike "*.ps1" -and $ScriptPath -notlike "*.psm1") {
-        Write-Host "Error: File must be a .ps1 or .psm1 script" -ForegroundColor Red
+        Write-Console "Error: File must be a .ps1 or .psm1 script" -ForegroundColor Red
         exit 1
     }
     $scriptsToCheck = @(Get-Item $ScriptPath -ErrorAction Stop)
 }
 
 $scriptCount = @($scriptsToCheck).Count
-Write-Host "Found $scriptCount script(s) to check`n" -ForegroundColor Cyan
+Write-Console "Found $scriptCount script(s) to check`n" -ForegroundColor Cyan
 
 foreach ($script in $scriptsToCheck) {
-    Write-Host "Checking: $($script.Name)" -ForegroundColor White
+    Write-Console "Checking: $($script.Name)" -ForegroundColor White
     
     try {
         $content = Get-Content $script.FullName -Raw -ErrorAction Stop
@@ -381,10 +395,10 @@ foreach ($script in $scriptsToCheck) {
         
         $scriptIssues = @($script:Issues | Where-Object { $_.File -eq $script.FullName })
         if ($scriptIssues.Count -eq 0) {
-            Write-Host "  No issues found" -ForegroundColor Green
+            Write-Console "  No issues found" -ForegroundColor Green
         }
         else {
-            Write-Host "  ! Found $($scriptIssues.Count) issue(s)" -ForegroundColor Yellow
+            Write-Console "  ! Found $($scriptIssues.Count) issue(s)" -ForegroundColor Yellow
         }
     }
     catch {
@@ -393,9 +407,9 @@ foreach ($script in $scriptsToCheck) {
 }
 
 # Summary
-Write-Host "`n=== Summary ===" -ForegroundColor Cyan
-Write-Host "Scripts checked: $($scriptsToCheck.Count)" -ForegroundColor White
-Write-Host "Total issues: $($script:Issues.Count)" -ForegroundColor White
+Write-Console "`n=== Summary ===" -ForegroundColor Cyan
+Write-Console "Scripts checked: $($scriptsToCheck.Count)" -ForegroundColor White
+Write-Console "Total issues: $($script:Issues.Count)" -ForegroundColor White
 
 if ($script:Issues.Count -gt 0) {
     $grouped = $script:Issues | Group-Object Severity
@@ -406,16 +420,17 @@ if ($script:Issues.Count -gt 0) {
             'MEDIUM' { 'Yellow' }
             'LOW' { 'Gray' }
         }
-        Write-Host "  $($group.Name): $($group.Count)" -ForegroundColor $color
+        Write-Console "  $($group.Name): $($group.Count)" -ForegroundColor $color
     }
     
     if ($ShowReport) {
         New-SimpleReport -AllIssues $script:Issues
     }
     else {
-        Write-Host "`nTip: Use -ShowReport to generate HTML report" -ForegroundColor Gray
+        Write-Console "`nTip: Use -ShowReport to generate HTML report" -ForegroundColor Gray
     }
 }
 else {
-    Write-Host "`nAll scripts look good!" -ForegroundColor Green
+    Write-Console "`nAll scripts look good!" -ForegroundColor Green
 }
+

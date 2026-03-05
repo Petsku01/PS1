@@ -50,7 +50,7 @@
 
 [CmdletBinding(SupportsShouldProcess)]
 param(
-    [Parameter(ValueFromPipeline, ValueFromPipelineByPropertyName)]
+    [Parameter()]
     [ValidateScript({
         if (-not (Test-Path $_)) {
             throw "Path '$_' does not exist"
@@ -189,13 +189,14 @@ function Test-ScriptSecurity {
         
         # Fallback regex-based checks
         # Check for execution policy bypass (real code lines only)
-        if ([System.Text.RegularExpressions.Regex]::IsMatch($Content, '^[\t ]*Set-ExecutionPolicy\b.*Bypass', [System.Text.RegularExpressions.RegexOptions]::Multiline)) {
+            if ([System.Text.RegularExpressions.Regex]::IsMatch($Content, '^[\t ]*Set-ExecutionPolicy\b.*Bypass', [System.Text.RegularExpressions.RegexOptions]::Multiline)) {
+                $bypassLine = ($Content -split "`n" | Select-String -Pattern '^[\t ]*Set-ExecutionPolicy\b.*Bypass').LineNumber | Select-Object -First 1
             $issues += [PSCustomObject]@{
                 File = $FilePath
                 Severity = 'CRITICAL'
                 Category = 'Security'
                 Issue = 'Execution Policy Bypass'
-                Line = ($Content -split "`n" | Select-String -Pattern '^[\t ]*Set-ExecutionPolicy\b.*Bypass' -SimpleMatch).LineNumber
+                Line = $bypassLine
                 Description = 'Script sets execution policy to Bypass - security risk'
                 Recommendation = 'Remove Set-ExecutionPolicy command. Users should set their own policy.'
                 AutoFix = $true

@@ -27,9 +27,23 @@ https://docs.microsoft.com/en-us/powershell/module/microsoft.powershell.manageme
 # Prosessien hallinta
 # PowerShell Process Manager - Simplified & Fixed
 
+function Write-Console {
+    [CmdletBinding()]
+    param(
+        [Parameter(Position = 0, ValueFromRemainingArguments = $true)]
+        [object[]]$Object,
+        [ConsoleColor]$ForegroundColor,
+        [ConsoleColor]$BackgroundColor,
+        [switch]$NoNewline,
+        [object]$Separator
+    )
+
+    Microsoft.PowerShell.Utility\Write-Host @PSBoundParameters
+}
+
 Clear-Host
-Write-Host "=== PROSESSIEN HALLINTA ===" -ForegroundColor Cyan
-Write-Host "`nListataan kynniss olevat prosessit..." -ForegroundColor Yellow
+Write-Console "=== PROSESSIEN HALLINTA ===" -ForegroundColor Cyan
+Write-Console "`nListataan kynniss olevat prosessit..." -ForegroundColor Yellow
 
 # Nyt prosessit jrjestettyn nimen mukaan
 $processes = Get-Process | Where-Object {$_.ProcessName -ne "Idle" -and $_.ProcessName -ne "System"} | 
@@ -48,9 +62,9 @@ $processes | Format-Table -Property Name, Id,
         [math]::Round($_.WorkingSet/1MB, 2)
     }} -AutoSize
 
-Write-Host "Yhteens: $($processes.Count) prosessia" -ForegroundColor Green
-Write-Host "`nVaroitus: Ole varovainen pysyttesssi prosesseja!" -ForegroundColor Red
-Write-Host "Jrjestelmprosessien pysyttminen voi kaataa tietokoneen." -ForegroundColor Red
+Write-Console "Yhteens: $($processes.Count) prosessia" -ForegroundColor Green
+Write-Console "`nVaroitus: Ole varovainen pysyttesssi prosesseja!" -ForegroundColor Red
+Write-Console "Jrjestelmprosessien pysyttminen voi kaataa tietokoneen." -ForegroundColor Red
 
 $prosessi = Read-Host "`nSyt prosessin nimi, jonka haluat pysytt (esim. notepad), tai paina Enter ohittaaksesi"
 
@@ -71,7 +85,7 @@ if ($prosessi -and $prosessi.Trim() -ne "") {
     }
     
     if ($loytyneetProsessit -and $loytyneetProsessit.Count -gt 0) {
-        Write-Host "`nLydettiin $($loytyneetProsessit.Count) prosessia:" -ForegroundColor Yellow
+        Write-Console "`nLydettiin $($loytyneetProsessit.Count) prosessia:" -ForegroundColor Yellow
         $loytyneetProsessit | Format-Table -Property Name, Id, 
             @{Name="WorkingSet(MB)"; Expression={[math]::Round($_.WorkingSet/1MB, 2)}} -AutoSize
         
@@ -90,14 +104,14 @@ if ($prosessi -and $prosessi.Trim() -ne "") {
         }
         
         if ($onKriittinen) {
-            Write-Host "`n!!! VAROITUS !!!" -ForegroundColor Red -BackgroundColor DarkRed
-            Write-Host "'$prosessinNimi' on KRIITTINEN jrjestelmprosessi!" -ForegroundColor Red
-            Write-Host "Sen pysyttminen voi kaataa tietokoneen!" -ForegroundColor Red
-            Write-Host ""
+            Write-Console "`n!!! VAROITUS !!!" -ForegroundColor Red -BackgroundColor DarkRed
+            Write-Console "'$prosessinNimi' on KRIITTINEN jrjestelmprosessi!" -ForegroundColor Red
+            Write-Console "Sen pysyttminen voi kaataa tietokoneen!" -ForegroundColor Red
+            Write-Console ""
             $vahvistus = Read-Host "Oletko TYSIN varma? (kirjoita 'KYLL' vahvistaaksesi)"
             
             if ($vahvistus -ne "KYLL") {
-                Write-Host "`nToiminto peruutettu." -ForegroundColor Yellow
+                Write-Console "`nToiminto peruutettu." -ForegroundColor Yellow
                 pause
                 exit
             }
@@ -113,34 +127,35 @@ if ($prosessi -and $prosessi.Trim() -ne "") {
                 try {
                     $prosessiNimi = "$($p.ProcessName) (PID: $($p.Id))"
                     Stop-Process -Id $p.Id -Force -ErrorAction Stop
-                    Write-Host "Prosessi $prosessiNimi pysytetty." -ForegroundColor Green
+                    Write-Console "Prosessi $prosessiNimi pysytetty." -ForegroundColor Green
                     $onnistuneet++
                 } catch {
-                    Write-Host "Prosessia $prosessiNimi ei voitu pysytt: $_" -ForegroundColor Red
+                    Write-Console "Prosessia $prosessiNimi ei voitu pysytt: $_" -ForegroundColor Red
                     $epaonnistuneet++
                 }
             }
             
-            Write-Host "`nYhteenveto:" -ForegroundColor Cyan
+            Write-Console "`nYhteenveto:" -ForegroundColor Cyan
             if ($onnistuneet -gt 0) {
-                Write-Host "  Pysytetty: $onnistuneet prosessia" -ForegroundColor Green
+                Write-Console "  Pysytetty: $onnistuneet prosessia" -ForegroundColor Green
             }
             if ($epaonnistuneet -gt 0) {
-                Write-Host "  Eponnistui: $epaonnistuneet prosessia" -ForegroundColor Red
-                Write-Host "`nVinkki: Kokeile suorittaa PowerShell jrjestelmnvalvojana." -ForegroundColor Yellow
+                Write-Console "  Eponnistui: $epaonnistuneet prosessia" -ForegroundColor Red
+                Write-Console "`nVinkki: Kokeile suorittaa PowerShell jrjestelmnvalvojana." -ForegroundColor Yellow
             }
         } else {
-            Write-Host "`nToiminto peruutettu." -ForegroundColor Yellow
+            Write-Console "`nToiminto peruutettu." -ForegroundColor Yellow
         }
     } else {
-        Write-Host "`nVirhe: Prosessia nimell '$prosessi' ei lytynyt." -ForegroundColor Red
-        Write-Host "Tarkista prosessin nimi yll olevasta listasta." -ForegroundColor Yellow
-        Write-Host "Huom: l kyt .exe-ptett" -ForegroundColor Yellow
+        Write-Console "`nVirhe: Prosessia nimell '$prosessi' ei lytynyt." -ForegroundColor Red
+        Write-Console "Tarkista prosessin nimi yll olevasta listasta." -ForegroundColor Yellow
+        Write-Console "Huom: l kyt .exe-ptett" -ForegroundColor Yellow
     }
 } else {
-    Write-Host "`nProsessia ei pysytetty." -ForegroundColor Yellow
+    Write-Console "`nProsessia ei pysytetty." -ForegroundColor Yellow
 }
 
-Write-Host "`nPaina mit tahansa nppint poistuaksesi..."
+Write-Console "`nPaina mit tahansa nppint poistuaksesi..."
 pause
+
 

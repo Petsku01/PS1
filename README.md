@@ -48,11 +48,21 @@ This repository contains two PowerShell script analyzers:
 
 # Use WhatIf to preview changes
 .\Update-Scripts.ps1 -ScriptPath .\scripts -Fix -WhatIf
+
+# Check which scripts are runnable in your current environment
+.\Test-ScriptPrerequisites.ps1
+
+# CI-friendly JSON output
+.\Test-ScriptPrerequisites.ps1 -Json
+
+# Pipeline gate example (fails when prerequisites are missing)
+.\Test-ScriptPrerequisites.ps1 -Json; if ($LASTEXITCODE -ne 0) { exit 1 }
 ```
 
 ### Components
 
 - **Update-Scripts.ps1** (814 lines) - Main analyzer with AST integration
+- **Test-ScriptPrerequisites.ps1** - Prerequisite matrix for all repo scripts
 - **CommonFunctions.psm1** (324 lines) - Shared utilities
 - **src/Analyzers/AstAnalyzer.ps1** (263 lines) - AST analysis module (ACTIVE)
 - **src/Core/AnalysisResult.ps1** (104 lines) - Thread-safe results (ACTIVE)

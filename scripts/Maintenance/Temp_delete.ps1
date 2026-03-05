@@ -28,19 +28,33 @@ https://docs.microsoft.com/en-us/windows/win32/fileio/temp
 # Vliaikaistiedostojen siivous
 # Poistaa tiedostoja ja kansioita kyttjn Temp-kansiosta
 
+function Write-Console {
+    [CmdletBinding()]
+    param(
+        [Parameter(Position = 0, ValueFromRemainingArguments = $true)]
+        [object[]]$Object,
+        [ConsoleColor]$ForegroundColor,
+        [ConsoleColor]$BackgroundColor,
+        [switch]$NoNewline,
+        [object]$Separator
+    )
+
+    Microsoft.PowerShell.Utility\Write-Host @PSBoundParameters
+}
+
 Clear-Host
-Write-Host "=== VLIAIKAISTIEDOSTOJEN SIIVOUS ===" -ForegroundColor Cyan
-Write-Host ""
+Write-Console "=== VLIAIKAISTIEDOSTOJEN SIIVOUS ===" -ForegroundColor Cyan
+Write-Console ""
 
 # Tarkista jrjestelmnvalvojan oikeudet
 $isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 if ($isAdmin) {
-    Write-Host "[OK] Jrjestelmnvalvojan oikeudet" -ForegroundColor Green
+    Write-Console "[OK] Jrjestelmnvalvojan oikeudet" -ForegroundColor Green
 } else {
-    Write-Host "[!] Rajoitetut oikeudet - kaikki tiedostot eivt vlttmtt poistu" -ForegroundColor Yellow
+    Write-Console "[!] Rajoitetut oikeudet - kaikki tiedostot eivt vlttmtt poistu" -ForegroundColor Yellow
 }
 
-Write-Host "`nEtsitn Temp-kansioita..." -ForegroundColor Yellow
+Write-Console "`nEtsitn Temp-kansioita..." -ForegroundColor Yellow
 
 # Ker kaikki temp-kansiot
 $tempPaths = @()
@@ -69,19 +83,19 @@ if ($isAdmin -and (Test-Path $windowsTemp)) {
 $tempPaths = $tempPaths | Select-Object -Unique | Where-Object { Test-Path $_ }
 
 if ($tempPaths.Count -eq 0) {
-    Write-Host "`nVirhe: Temp-kansioita ei lytynyt!" -ForegroundColor Red
-    Write-Host "Paina Enter poistuaksesi..."
+    Write-Console "`nVirhe: Temp-kansioita ei lytynyt!" -ForegroundColor Red
+    Write-Console "Paina Enter poistuaksesi..."
     Read-Host
     exit 1
 }
 
-Write-Host "`nLydettiin $($tempPaths.Count) temp-kansio(ta):" -ForegroundColor Green
+Write-Console "`nLydettiin $($tempPaths.Count) temp-kansio(ta):" -ForegroundColor Green
 foreach ($path in $tempPaths) {
-    Write-Host "  - $path" -ForegroundColor Cyan
+    Write-Console "  - $path" -ForegroundColor Cyan
 }
 
 # Laske tiedostojen mr ja koko
-Write-Host "`nAnalysoidaan tiedostoja..." -ForegroundColor Yellow
+Write-Console "`nAnalysoidaan tiedostoja..." -ForegroundColor Yellow
 $totalSize = 0
 $totalCount = 0
 $allItems = @()
@@ -104,38 +118,38 @@ foreach ($tempPath in $tempPaths) {
 }
 
 if ($totalCount -eq 0) {
-    Write-Host "`nTemp-kansiot ovat jo tyhji!" -ForegroundColor Green
-    Write-Host "Paina Enter poistuaksesi..."
+    Write-Console "`nTemp-kansiot ovat jo tyhji!" -ForegroundColor Green
+    Write-Console "Paina Enter poistuaksesi..."
     Read-Host
     exit 0
 }
 
 # Nyt yhteenveto
 $sizeInMB = [math]::Round($totalSize / 1MB, 2)
-Write-Host "`n=== YHTEENVETO ===" -ForegroundColor Cyan
-Write-Host "Poistettavia kohteita: $totalCount" -ForegroundColor White
-Write-Host "Vapautettava tila: $sizeInMB MB" -ForegroundColor White
+Write-Console "`n=== YHTEENVETO ===" -ForegroundColor Cyan
+Write-Console "Poistettavia kohteita: $totalCount" -ForegroundColor White
+Write-Console "Vapautettava tila: $sizeInMB MB" -ForegroundColor White
 
 # Kysy vahvistus
-Write-Host "`nHaluatko jatkaa siivousta? (k/e)" -ForegroundColor Yellow
+Write-Console "`nHaluatko jatkaa siivousta? (k/e)" -ForegroundColor Yellow
 $confirm = Read-Host
 
 if ($confirm -ne "k" -and $confirm -ne "K") {
-    Write-Host "`nSiivous peruutettu." -ForegroundColor Yellow
-    Write-Host "Paina Enter poistuaksesi..."
+    Write-Console "`nSiivous peruutettu." -ForegroundColor Yellow
+    Write-Console "Paina Enter poistuaksesi..."
     Read-Host
     exit 0
 }
 
 # Suorita siivous
-Write-Host "`nSiivotaan tiedostoja..." -ForegroundColor Green
+Write-Console "`nSiivotaan tiedostoja..." -ForegroundColor Green
 $deletedCount = 0
 $failedCount = 0
 $freedSpace = 0
 $failedItems = @()
 
 foreach ($tempPath in $tempPaths) {
-    Write-Host "`nSiivotaan: $tempPath" -ForegroundColor Cyan
+    Write-Console "`nSiivotaan: $tempPath" -ForegroundColor Cyan
     
     # Yrit poistaa tiedostot yksitellen
     $items = @()
@@ -161,7 +175,7 @@ foreach ($tempPath in $tempPaths) {
             
             # Nyt edistyminen suuremmissa siivouksissa
             if ($deletedCount % 100 -eq 0) {
-                Write-Host "  Poistettu $deletedCount/$totalCount..." -ForegroundColor Gray
+                Write-Console "  Poistettu $deletedCount/$totalCount..." -ForegroundColor Gray
             }
         } catch {
             $failedCount++
@@ -174,46 +188,46 @@ foreach ($tempPath in $tempPaths) {
 }
 
 # Nyt tulokset
-Write-Host "`n=== SIIVOUS VALMIS ===" -ForegroundColor Cyan
-Write-Host ""
+Write-Console "`n=== SIIVOUS VALMIS ===" -ForegroundColor Cyan
+Write-Console ""
 
 if ($deletedCount -gt 0) {
     $freedSpaceMB = [math]::Round($freedSpace / 1MB, 2)
-    Write-Host "Poistettu onnistuneesti:" -ForegroundColor Green
-    Write-Host "  - Tiedostoja/kansioita: $deletedCount" -ForegroundColor White
-    Write-Host "  - Vapautettu tilaa: $freedSpaceMB MB" -ForegroundColor White
+    Write-Console "Poistettu onnistuneesti:" -ForegroundColor Green
+    Write-Console "  - Tiedostoja/kansioita: $deletedCount" -ForegroundColor White
+    Write-Console "  - Vapautettu tilaa: $freedSpaceMB MB" -ForegroundColor White
 }
 
 if ($failedCount -gt 0) {
-    Write-Host "`nEi voitu poistaa:" -ForegroundColor Red
-    Write-Host "  - Lukittuja/suojattuja kohteita: $failedCount" -ForegroundColor Yellow
+    Write-Console "`nEi voitu poistaa:" -ForegroundColor Red
+    Write-Console "  - Lukittuja/suojattuja kohteita: $failedCount" -ForegroundColor Yellow
     
     if ($failedCount -le 10) {
-        Write-Host "`nEponnistuneet kohteet:" -ForegroundColor Yellow
+        Write-Console "`nEponnistuneet kohteet:" -ForegroundColor Yellow
         foreach ($failed in $failedItems | Select-Object -First 10) {
             $fileName = Split-Path $failed.Path -Leaf
-            Write-Host "  - $fileName" -ForegroundColor Gray
+            Write-Console "  - $fileName" -ForegroundColor Gray
         }
     }
     
-    Write-Host "`nVinkki: Sulje kaikki ohjelmat ja yrit uudelleen." -ForegroundColor Yellow
+    Write-Console "`nVinkki: Sulje kaikki ohjelmat ja yrit uudelleen." -ForegroundColor Yellow
     if (-not $isAdmin) {
-        Write-Host "Vinkki: Suorita jrjestelmnvalvojana poistaaksesi enemmn tiedostoja." -ForegroundColor Yellow
+        Write-Console "Vinkki: Suorita jrjestelmnvalvojana poistaaksesi enemmn tiedostoja." -ForegroundColor Yellow
     }
 }
 
 # Yrit tyhjent mys Roskakorin sislt
-Write-Host "`nHaluatko tyhjent mys Roskakorin? (k/e)" -ForegroundColor Cyan
+Write-Console "`nHaluatko tyhjent mys Roskakorin? (k/e)" -ForegroundColor Cyan
 $recycleConfirm = Read-Host
 
 if ($recycleConfirm -eq "k" -or $recycleConfirm -eq "K") {
     try {
-        Write-Host "Tyhjennetn Roskakori..." -ForegroundColor Yellow
+        Write-Console "Tyhjennetn Roskakori..." -ForegroundColor Yellow
         
         # Tarkista onko Clear-RecycleBin kytettviss (PowerShell 5.0+)
         if (Get-Command Clear-RecycleBin -ErrorAction SilentlyContinue) {
             Clear-RecycleBin -Force -ErrorAction Stop
-            Write-Host "Roskakori tyhjennetty!" -ForegroundColor Green
+            Write-Console "Roskakori tyhjennetty!" -ForegroundColor Green
         } else {
             # Kyt vanhempaa COM-menetelm
             $shell = New-Object -ComObject Shell.Application
@@ -224,26 +238,27 @@ if ($recycleConfirm -eq "k" -or $recycleConfirm -eq "K") {
                 $recycleBin.Items() | ForEach-Object { 
                     $_.InvokeVerb("delete")
                 }
-                Write-Host "Roskakori tyhjennetty!" -ForegroundColor Green
+                Write-Console "Roskakori tyhjennetty!" -ForegroundColor Green
             } else {
-                Write-Host "Roskakori on jo tyhj." -ForegroundColor Yellow
+                Write-Console "Roskakori on jo tyhj." -ForegroundColor Yellow
             }
         }
     } catch {
-        Write-Host "Roskakorin tyhjennys eponnistui: $_" -ForegroundColor Red
+        Write-Console "Roskakorin tyhjennys eponnistui: $_" -ForegroundColor Red
     }
 }
 
 # Nyt yhteenveto
-Write-Host "`n================================" -ForegroundColor Cyan
+Write-Console "`n================================" -ForegroundColor Cyan
 if ($deletedCount -gt 0) {
-    Write-Host "Siivous suoritettu onnistuneesti!" -ForegroundColor Green
+    Write-Console "Siivous suoritettu onnistuneesti!" -ForegroundColor Green
     $successRate = [math]::Round(($deletedCount / $totalCount) * 100, 1)
-    Write-Host "Onnistumisprosentti: $successRate%" -ForegroundColor White
+    Write-Console "Onnistumisprosentti: $successRate%" -ForegroundColor White
 } else {
-    Write-Host "Ei tiedostoja poistettavaksi." -ForegroundColor Yellow
+    Write-Console "Ei tiedostoja poistettavaksi." -ForegroundColor Yellow
 }
 
-Write-Host "`nPaina Enter poistuaksesi..."
+Write-Console "`nPaina Enter poistuaksesi..."
 Read-Host
+
 

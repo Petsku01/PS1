@@ -34,6 +34,20 @@ param(
     [string]$LogDirectory = "$env:SystemDrive\Logs"
 )
 
+function Write-Console {
+    [CmdletBinding()]
+    param(
+        [Parameter(Position = 0, ValueFromRemainingArguments = $true)]
+        [object[]]$Object,
+        [ConsoleColor]$ForegroundColor,
+        [ConsoleColor]$BackgroundColor,
+        [switch]$NoNewline,
+        [object]$Separator
+    )
+
+    Microsoft.PowerShell.Utility\Write-Host @PSBoundParameters
+}
+
 # Import CommonFunctions for standardized logging
 Import-Module -Name (Join-Path $PSScriptRoot '..\..\CommonFunctions.psm1') -Force -ErrorAction Stop
 
@@ -51,13 +65,13 @@ Write-StandardLog -Message "Starting Windows Server health scan" -Level "INFO" -
 
 # Get server version
 Clear-Host
-Write-Host "=== Windows Server Health Scan ===" -ForegroundColor Cyan
-Write-Host "Select your Windows Server version:"
-Write-Host "1. Windows Server 2008/2008 R2"
-Write-Host "2. Windows Server 2012/2012 R2"  
-Write-Host "3. Windows Server 2016"
-Write-Host "4. Windows Server 2019"
-Write-Host "5. Windows Server 2022"
+Write-Console "=== Windows Server Health Scan ===" -ForegroundColor Cyan
+Write-Console "Select your Windows Server version:"
+Write-Console "1. Windows Server 2008/2008 R2"
+Write-Console "2. Windows Server 2012/2012 R2"  
+Write-Console "3. Windows Server 2016"
+Write-Console "4. Windows Server 2019"
+Write-Console "5. Windows Server 2022"
 
 do {
     $choice = Read-Host "Enter number (1-5)"
@@ -375,22 +389,23 @@ $reportFile = "$logPath\ServerHealthReport_$timestamp.json"
 $report | ConvertTo-Json -Depth 3 | Set-Content -Path $reportFile
 
 # Display Summary
-Write-Host "`n=== Health Scan Complete ===" -ForegroundColor Green
-Write-Host "Server: Windows Server $serverVersion"
-Write-Host "Issues Found: $($issues.Count)"
+Write-Console "`n=== Health Scan Complete ===" -ForegroundColor Green
+Write-Console "Server: Windows Server $serverVersion"
+Write-Console "Issues Found: $($issues.Count)"
 
 if ($issues.Count -gt 0) {
-    Write-Host "`nIssues:" -ForegroundColor Yellow
+    Write-Console "`nIssues:" -ForegroundColor Yellow
     foreach ($issue in $issues) {
-        Write-Host "  [$($issue.Category)] $($issue.Description)" -ForegroundColor Yellow
-        Write-Host "     $($issue.Recommendation)" -ForegroundColor Cyan
+        Write-Console "  [$($issue.Category)] $($issue.Description)" -ForegroundColor Yellow
+        Write-Console "     $($issue.Recommendation)" -ForegroundColor Cyan
     }
 } else {
-    Write-Host "No issues found!" -ForegroundColor Green
+    Write-Console "No issues found!" -ForegroundColor Green
 }
 
-Write-Host "`nLog: $logFile"
-Write-Host "Report: $reportFile"
+Write-Console "`nLog: $logFile"
+Write-Console "Report: $reportFile"
 
 Write-StandardLog -Message "Scan completed" -Level "INFO" -Path $logFile
+
 

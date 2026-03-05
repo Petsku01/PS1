@@ -26,19 +26,33 @@ https://docs.microsoft.com/en-us/previous-versions/windows/desktop/legacy/ms6463
 # NOTE: If you encounter execution policy errors, run this ONCE as administrator:
 #       Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
 
+function Write-Console {
+    [CmdletBinding()]
+    param(
+        [Parameter(Position = 0, ValueFromRemainingArguments = $true)]
+        [object[]]$Object,
+        [ConsoleColor]$ForegroundColor,
+        [ConsoleColor]$BackgroundColor,
+        [switch]$NoNewline,
+        [object]$Separator
+    )
+
+    Microsoft.PowerShell.Utility\Write-Host @PSBoundParameters
+}
+
 # Tyhjenn nytt siistin aloituksen vuoksi
 Clear-Host
 
 # Nyt aloitusohjeet
-Write-Host "------------------------------------------------------" -ForegroundColor Red
-Write-Host "PIT HEREILL -SKRIPTI" -ForegroundColor Cyan
-Write-Host "Tm skripti vaihtaa Scroll Lock -nppimen tilaa estkseen tietokoneen menemisen lepotilaan tai lukittumisen." -ForegroundColor Cyan
-Write-Host "------------------------------------------------------" -ForegroundColor Cyan
-Write-Host ""
-Write-Host "AJA SKRIPTI SUORAAN OMALTA TYASEMALTASI." -ForegroundColor Red
-Write-Host ""
-Write-Host "Lopeta skripti painamalla Ctrl+C milloin tahansa." -ForegroundColor Yellow
-Write-Host ""
+Write-Console "------------------------------------------------------" -ForegroundColor Red
+Write-Console "PIT HEREILL -SKRIPTI" -ForegroundColor Cyan
+Write-Console "Tm skripti vaihtaa Scroll Lock -nppimen tilaa estkseen tietokoneen menemisen lepotilaan tai lukittumisen." -ForegroundColor Cyan
+Write-Console "------------------------------------------------------" -ForegroundColor Cyan
+Write-Console ""
+Write-Console "AJA SKRIPTI SUORAAN OMALTA TYASEMALTASI." -ForegroundColor Red
+Write-Console ""
+Write-Console "Lopeta skripti painamalla Ctrl+C milloin tahansa." -ForegroundColor Yellow
+Write-Console ""
 
 # Kysy vaihtovli (oletus on 10 sekuntia, jos ei sytet arvoa)
 $oletusVali = 10
@@ -64,14 +78,14 @@ try {
     $myshell = New-Object -ComObject "Wscript.Shell" -ErrorAction Stop
 } catch {
     Write-Error "Wscript.Shell COM-objektin alustaminen eponnistui. Virhe: $_"
-    Write-Host "Paina mit tahansa nppint poistuaksesi..."
+    Write-Console "Paina mit tahansa nppint poistuaksesi..."
     $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
     exit 1
 }
 
 # Psilmukka Scroll Lock -nppimen vaihtamiseen
-Write-Host "Aloitetaan Scroll Lock -nppimen vaihto $vali sekunnin vlein..." -ForegroundColor Green
-Write-Host ""
+Write-Console "Aloitetaan Scroll Lock -nppimen vaihto $vali sekunnin vlein..." -ForegroundColor Green
+Write-Console ""
 
 try {
     while ($true) {
@@ -88,7 +102,7 @@ try {
         # Nyt aikaleimattu viesti
         $aika = Get-Date
         $lyhytAika = $aika.ToString("HH:mm:ss")
-        Write-Host "$lyhytAika - Vaihdettiin Scroll Lock -nppimen tilaa, jotta tietokone pysyy hereill."
+        Write-Console "$lyhytAika - Vaihdettiin Scroll Lock -nppimen tilaa, jotta tietokone pysyy hereill."
         
         # Odota mritetty vli
         Start-Sleep -Seconds $vali
@@ -102,8 +116,9 @@ try {
         $myshell = $null
     }
     
-    Write-Host ""
-    Write-Host "Skripti pysytetty. Paina mit tahansa nppint poistuaksesi..." -ForegroundColor Yellow
+    Write-Console ""
+    Write-Console "Skripti pysytetty. Paina mit tahansa nppint poistuaksesi..." -ForegroundColor Yellow
     $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
 }
+
 
